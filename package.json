@@ -1,0 +1,39 @@
+{
+	"name": "alclient-bots",
+	"version": "0.1.0",
+	"description": "My own bots to interact with Adventure.land.",
+	"main": "index.js",
+	"type": "module",
+	"dependencies": {
+		"alclient": "^0.15.16",
+		"algui": "^0.1.21",
+		"commander": "^9.4.0",
+		"fastpriorityqueue": "^0.7.2"
+	},
+	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "^5.35.1",
+		"@typescript-eslint/parser": "^5.35.1",
+		"eslint": "^8.23.0",
+		"rimraf": "^3.0.2",
+		"typescript": "^4.8.2"
+	},
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"updateReqs": "npm i alclient@latest algui@latest commander@latest fastpriorityqueue@latest",
+		"updateDevs": "npm i --save-dev @typescript-eslint/eslint-plugin@latest @typescript-eslint/parser@latest eslint@latest rimraf@latest typescript@latest",
+		"update": "npm run updateReqs && npm run updateDevs",
+		"clean": "rimraf ./build/*",
+		"build": "tsc",
+		"prepare": "npm run update && npm run clean && npm run build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/StormSurge95/Adventure-Land-Scripts.git"
+	},
+	"author": "Storm Cassidy",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/StormSurge95/Adventure-Land-Scripts/issues"
+	},
+	"homepage": "https://github.com/StormSurge95/Adventure-Land-Scripts#readme"
+}

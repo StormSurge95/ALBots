@@ -1,0 +1,546 @@
+{
+	"goo": {
+		"attack": 5,
+		"gold": {
+			"main": 9,
+			"dungeon0": 16,
+			"old_main": 9,
+			"goobrawl": 9
+		}
+	},
+	"squig": {
+		"attack": 7,
+		"gold": {
+			"main": 61
+		}
+	},
+	"grinch": {
+		"attack": 9,
+		"gold": {
+			"woffice": 673920
+		}
+	},
+	"jr": {
+		"attack": 10,
+		"gold": {
+			"spookytown": 180
+		}
+	},
+	"cutebee": {
+		"attack": 16
+	},
+	"porcupine": {
+		"attack": 16,
+		"gold": {
+			"desertland": 86
+		}
+	},
+	"bee": {
+		"attack": 16,
+		"gold": {
+			"main": 26
+		}
+	},
+	"armadillo": {
+		"attack": 20,
+		"gold": {
+			"main": 55
+		}
+	},
+	"snake": {
+		"attack": 24,
+		"gold": {
+			"main": 44,
+			"halloween": 44
+		}
+	},
+	"squigtoad": {
+		"attack": 24,
+		"gold": {
+			"main": 41
+		}
+	},
+	"osnake": {
+		"attack": 24,
+		"gold": {
+			"halloween": 44
+		}
+	},
+	"frog": {
+		"attack": 24,
+		"gold": {
+			"main": 41
+		}
+	},
+	"crab": {
+		"attack": 24,
+		"gold": {
+			"main": 17
+		}
+	},
+	"greenjr": {
+		"attack": 30,
+		"gold": {
+			"halloween": 236
+		}
+	},
+	"tortoise": {
+		"attack": 36,
+		"gold": {
+			"main": 97
+		}
+	},
+	"croc": {
+		"attack": 48,
+		"gold": {
+			"main": 61
+		}
+	},
+	"hen": {
+		"attack": 48,
+		"gold": {
+			"main": 6
+		}
+	},
+	"rooster": {
+		"attack": 48,
+		"gold": {
+			"main": 6
+		}
+	},
+	"mechagnome": {
+		"attack": 48,
+		"gold": {
+			"cyberland": 25509
+		}
+	},
+	"bat": {
+		"attack": 50,
+		"gold": {
+			"batcave": 106,
+			"old_main": 106,
+			"cave": 68
+		}
+	},
+	"goldenbat": {
+		"attack": 50
+	},
+	"wabbit": {
+		"attack": 60
+	},
+	"arcticbee": {
+		"attack": 64,
+		"gold": {
+			"winterland": 78
+		}
+	},
+	"snowman": {
+		"attack": 80
+	},
+	"spider": {
+		"attack": 80,
+		"gold": {
+			"main": 87,
+			"old_main": 121
+		}
+	},
+	"rat": {
+		"attack": 80,
+		"gold": {
+			"mansion": 50
+		}
+	},
+	"scorpion": {
+		"attack": 100,
+		"gold": {
+			"main": 68,
+			"old_main": 140,
+			"desertland": 140
+		}
+	},
+	"pinkgoo": {
+		"attack": 100
+	},
+	"gredpro": {
+		"attack": 120,
+		"gold": {
+			"tomb": 190619
+		}
+	},
+	"gscorpion": {
+		"attack": 120
+	},
+	"iceroamer": {
+		"attack": 120,
+		"gold": {
+			"winterland": 196
+		}
+	},
+	"minimush": {
+		"attack": 120,
+		"gold": {
+			"halloween": 34
+		}
+	},
+	"phoenix": {
+		"attack": 125,
+		"gold": {
+			"main": 4493,
+			"old_main": 4493
+		}
+	},
+	"ghost": {
+		"attack": 200,
+		"gold": {
+			"halloween": 588
+		}
+	},
+	"booboo": {
+		"attack": 220,
+		"gold": {
+			"spookytown": 281
+		}
+	},
+	"nerfedmummy": {
+		"attack": 240
+	},
+	"jrat": {
+		"attack": 240,
+		"gold": {
+			"jail": 320
+		}
+	},
+	"crabx": {
+		"attack": 240,
+		"gold": {
+			"main": 118
+		}
+	},
+	"boar": {
+		"attack": 240,
+		"gold": {
+			"winterland": 587
+		}
+	},
+	"poisio": {
+		"attack": 240,
+		"gold": {
+			"main": 58
+		}
+	},
+	"tinyp": {
+		"attack": 240,
+		"gold": {
+			"halloween": 158
+		}
+	},
+	"a5": {
+		"attack": 240,
+		"gold": {
+			"crypt": 51668
+		}
+	},
+	"mvampire": {
+		"attack": 245,
+		"gold": {
+			"batcave": 6740,
+			"cave": 6740
+		}
+	},
+	"wolfie": {
+		"attack": 320,
+		"gold": {
+			"winterland": 1235
+		}
+	},
+	"fireroamer": {
+		"attack": 320,
+		"gold": {
+			"desertland": 6535
+		}
+	},
+	"prat": {
+		"attack": 320,
+		"gold": {
+			"level1": 734
+		}
+	},
+	"bbpompom": {
+		"attack": 320,
+		"gold": {
+			"level3": 397,
+			"winter_cave": 320
+		}
+	},
+	"chestm": {
+		"attack": 320
+	},
+	"cgoo": {
+		"attack": 320,
+		"gold": {
+			"level4": 348,
+			"level2s": 348,
+			"arena": 348
+		}
+	},
+	"stoneworm": {
+		"attack": 360,
+		"gold": {
+			"spookytown": 65
+		}
+	},
+	"mummy": {
+		"attack": 420,
+		"gold": {
+			"level3": 1995,
+			"level4": 1995,
+			"spookytown": 1119
+		}
+	},
+	"wolf": {
+		"attack": 480,
+		"gold": {
+			"winterland": 2960
+		}
+	},
+	"oneeye": {
+		"attack": 480,
+		"gold": {
+			"level2w": 35997
+		}
+	},
+	"mole": {
+		"attack": 480,
+		"gold": {
+			"tunnel": 798
+		}
+	},
+	"bigbird": {
+		"attack": 480,
+		"gold": {
+			"main": 899
+		}
+	},
+	"plantoid": {
+		"attack": 640,
+		"gold": {
+			"desertland": 9870
+		}
+	},
+	"xscorpion": {
+		"attack": 720,
+		"gold": {
+			"halloween": 905
+		}
+	},
+	"a4": {
+		"attack": 720,
+		"gold": {
+			"crypt": 210093
+		}
+	},
+	"dragold": {
+		"attack": 800
+	},
+	"fvampire": {
+		"attack": 875,
+		"gold": {
+			"halloween": 6740
+		}
+	},
+	"a7": {
+		"attack": 910,
+		"gold": {
+			"crypt": 161741
+		}
+	},
+	"pppompom": {
+		"attack": 920,
+		"gold": {
+			"level2n": 4586
+		}
+	},
+	"tiger": {
+		"attack": 960
+	},
+	"ggreenpro": {
+		"attack": 1120,
+		"gold": {
+			"tomb": 44928
+		}
+	},
+	"mrpumpkin": {
+		"attack": 1200,
+		"gold": {
+			"halloween": 2102543
+		}
+	},
+	"mrgreen": {
+		"attack": 1200,
+		"gold": {
+			"spookytown": 2768812
+		}
+	},
+	"vbat": {
+		"attack": 1240,
+		"gold": {
+			"crypt": 74469
+		}
+	},
+	"a3": {
+		"attack": 1520,
+		"gold": {
+			"crypt": 76827
+		}
+	},
+	"rudolph": {
+		"attack": 1600
+	},
+	"xmagefz": {
+		"attack": 1640,
+		"gold": {
+			"winter_instance": 449998
+		}
+	},
+	"skeletor": {
+		"attack": 1800,
+		"gold": {
+			"arena": 2247
+		}
+	},
+	"felemental": {
+		"attack": 1800
+	},
+	"nelemental": {
+		"attack": 1800
+	},
+	"ligerx": {
+		"attack": 1800
+	},
+	"eelemental": {
+		"attack": 1800
+	},
+	"welemental": {
+		"attack": 1800
+	},
+	"xmagefi": {
+		"attack": 2240,
+		"gold": {
+			"winter_instance": 702110
+		}
+	},
+	"a2": {
+		"attack": 2240,
+		"gold": {
+			"crypt": 94349
+		}
+	},
+	"dknight2": {
+		"attack": 2275,
+		"gold": {
+			"old_main": 6283
+		}
+	},
+	"icegolem": {
+		"attack": 2400,
+		"gold": {
+			"winterland": 7731924
+		}
+	},
+	"bluefairy": {
+		"attack": 2400,
+		"gold": {
+			"main": 112320
+		}
+	},
+	"pinkgoblin": {
+		"attack": 2400,
+		"gold": {
+			"level2e": 79530
+		}
+	},
+	"xmagen": {
+		"attack": 2440,
+		"gold": {
+			"winter_instance": 513598
+		}
+	},
+	"a8": {
+		"attack": 2680,
+		"gold": {
+			"crypt": 125799
+		}
+	},
+	"franky": {
+		"attack": 2910
+	},
+	"greenfairy": {
+		"attack": 3000,
+		"gold": {
+			"main": 101088
+		}
+	},
+	"bscorpion": {
+		"attack": 3200,
+		"gold": {
+			"desertland": 36382
+		}
+	},
+	"slenderman": {
+		"attack": 3600
+	},
+	"stompy": {
+		"attack": 3600,
+		"gold": {
+			"winterland": 36724
+		}
+	},
+	"ent": {
+		"attack": 3600,
+		"gold": {
+			"desertland": 675949
+		}
+	},
+	"redfairy": {
+		"attack": 4000,
+		"gold": {
+			"main": 134784
+		}
+	},
+	"a1": {
+		"attack": 4240,
+		"gold": {
+			"crypt": 9537313
+		}
+	},
+	"gpurplepro": {
+		"attack": 4893,
+		"gold": {
+			"tomb": 376650
+		}
+	},
+	"d_wiz": {
+		"attack": 5200,
+		"gold": {
+			"d2": 16528
+		}
+	},
+	"a6": {
+		"attack": 8960,
+		"gold": {
+			"crypt": 71885
+		}
+	},
+	"gbluepro": {
+		"attack": 9600,
+		"gold": {
+			"tomb": 311626
+		}
+	},
+	"xmagex": {
+		"attack": 12640,
+		"gold": {
+			"winter_instance": 52160631
+		}
+	}
+}
