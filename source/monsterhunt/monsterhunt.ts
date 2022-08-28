@@ -21,9 +21,9 @@ const partyMembers = ["WarriorSurge", "PriestSurge", "MageSurge", "StormSurge"]
 
 const huntables: MonsterName[] = ["goo", "squig", "grinch", "jr", "cutebee", "porcupine", "bee", "armadillo", "snake", "squigtoad", "osnake",
     "frog", "crab", "greenjr", "tortoise", "croc", "hen", "rooster", "mechagnome", "bat", "goldenbat", "wabbit", "arcticbee", "snowman",
-    "spider", "rat", "scorpion", "pinkgoo", "gredpro", "gscorpion", "iceroamer", "minimush", "phoenix", "ghost", "booboo", "nerfedmummy",
-    "jrat", "crabx", "boar", "poisio", "tinyp", "a5", "mvampire", "wolfie", "prat", "bbpompom", "chestm", "cgoo", "stoneworm", "mummy",
-    "wolf", "mole", "bigbird"]
+    "spider", "rat", "scorpion", "pinkgoo", "gredpro", "gscorpion", "iceroamer", "minimush", "phoenix", "ghost", "nerfedmummy", "jrat",
+    "crabx", "boar", "poisio", "tinyp", "a5", "mvampire", "wolfie", "prat", "bbpompom", "chestm", "cgoo", "stoneworm", "mummy", "wolf",
+    "mole", "bigbird"]
 
 let merchant: Merchant
 let warrior: Warrior
