@@ -1,8 +1,8 @@
 import { Character, Constants, Game, IPosition, Mage, Merchant, MonsterName, Pathfinder, Priest, ServerIdentifier, ServerRegion, Tools, Warrior } from "alclient"
-import { calculateAttackLoopCooldown, getTotalTargets, goToPotionSellerIfLow, ITEMS_TO_COMPOUND, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_SELL,
-    ITEMS_TO_UPGRADE, LOOP_MS, moveInCircle, sleep, startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startCompoundLoop, startCraftLoop, startElixirLoop,
-    startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startSellLoop, startSendStuffDenyListLoop, startTrackerLoop, startUpgradeLoop } from "../base/general.js"
-import { locations, offsetPositionParty } from "../base/locations.js"
+import { calculateAttackLoopCooldown, goToPotionSellerIfLow, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_SELL, LOOP_MS, moveInCircle, sleep,
+    startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startCompoundLoop, startCraftLoop, startElixirLoop,
+    startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startSellLoop, startSendStuffDenylistLoop, startTrackerLoop, startUpgradeLoop } from "../base/general.js"
+import { offsetPositionParty } from "../base/locations.js"
 import { attackTheseTypesMage } from "../base/mage.js"
 import { startMluckLoop, doBanking, goFishing, goMining } from "../base/merchant.js"
 import { startDarkBlessingLoop, startPartyHealLoop, attackTheseTypesPriest } from "../base/priest.js"
@@ -37,7 +37,7 @@ program
 program.parse(process.argv)
 const options = program.opts()
 console.log(options)
-const location = locations[options.targets[0]][0]
+const location: IPosition = undefined//locations[options.targets[0]][0]
 /** End Config **/
 
 async function startShared(bot: Character, merchantID: string, friends: Character[]): Promise<void> {
@@ -47,8 +47,8 @@ async function startShared(bot: Character, merchantID: string, friends: Characte
         startAvoidStacking(bot)
         startLootLoop(bot, friends)
         startElixirLoop(bot, "elixirluck")
-        if (bot.id == partyLeader) startSendStuffDenyListLoop(bot, [merchantID], ITEMS_TO_HOLD, 500_000)
-        else startSendStuffDenyListLoop(bot, [partyLeader], ITEMS_TO_HOLD, 500_000)
+        if (bot.id == partyLeader) startSendStuffDenylistLoop(bot, [merchantID], ITEMS_TO_HOLD, 500_000)
+        else startSendStuffDenylistLoop(bot, [partyLeader], ITEMS_TO_HOLD, 500_000)
     }
     if (bot.id == partyLeader) startPartyLoop(bot, partyLeader, partyMembers)
     else bot.timeouts.set("partyLoop", setTimeout(async () => { startPartyLoop(bot, partyLeader, partyMembers) }, 2000))
@@ -70,12 +70,12 @@ async function startWarrior(bot: Warrior, merchant: string, friends: Character[]
                 return
             }
 
-            const warTargs = getTotalTargets(warrior)
-            const priTargs = (priest) ? getTotalTargets(priest) : 0
-            const magTargs = (mage) ? getTotalTargets(mage) : 0
+            const warTargs = warrior.targets
+            const priTargs = (priest) ? priest.targets : 0
+            const magTargs = (mage) ? mage.targets : 0
 
             if (priTargs > 0 || magTargs > 0) {
-                if (warTargs > 0) await attackTheseTypesWarrior(bot, undefined, friends, { targetingMe: false, targetingPartyMember: true })
+                if (warTargs > 0) await attackTheseTypesWarrior(bot, undefined, friends, { targetingPartyMember: true })
                 else await attackTheseTypesWarrior(bot, undefined, friends, { targetingPartyMember: true })
             } else {
                 await attackTheseTypesWarrior(bot, options.targets, friends, { maximumTargets: options.max })
@@ -230,8 +230,8 @@ async function startMerchant(bot: Merchant, friends: Character[], standPlace: IP
     startShared(bot, bot.id, friends)
 
     startBuyFriendsReplenishablesLoop(bot, friends)
-    startUpgradeLoop(bot, ITEMS_TO_SELL, ITEMS_TO_UPGRADE)
-    startCompoundLoop(bot, ITEMS_TO_SELL, ITEMS_TO_COMPOUND)
+    startUpgradeLoop(bot, ITEMS_TO_SELL)
+    startCompoundLoop(bot, ITEMS_TO_SELL)
     startCraftLoop(bot, ITEMS_TO_CRAFT)
     startExchangeLoop(bot, ITEMS_TO_EXCHANGE)
     startSellLoop(bot)
@@ -317,7 +317,7 @@ async function startMerchant(bot: Merchant, friends: Character[], standPlace: IP
 
             if (bot.canUse("mining", { ignoreEquipped: true })) {
                 console.log("[merchant]: going mining...")
-                await goMining(bot, "M1")
+                await goMining(bot)
                 bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
                 return
             }

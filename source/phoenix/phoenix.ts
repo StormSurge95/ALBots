@@ -1,5 +1,5 @@
 import AL, { Character, Constants, Entity, IPosition, Mage, Merchant, MonsterName, Pathfinder, Priest, ServerIdentifier, ServerRegion, Tools, Warrior } from "alclient"
-import { calculateAttackLoopCooldown, getTotalTargets, goToPotionSellerIfLow, goToSpecialMonster, ITEMS_TO_COMPOUND, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_SELL, ITEMS_TO_UPGRADE, LOOP_MS, sleep, startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startCompoundLoop, startCraftLoop, startElixirLoop, startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startSellLoop, startSendStuffDenyListLoop, startTrackerLoop, startUpgradeLoop } from "../base/general.js"
+import { calculateAttackLoopCooldown, goToPotionSellerIfLow, goToSpecialMonster, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_SELL, LOOP_MS, sleep, startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startCompoundLoop, startCraftLoop, startElixirLoop, startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startSellLoop, startSendStuffDenylistLoop, startTrackerLoop, startUpgradeLoop } from "../base/general.js"
 import { attackTheseTypesWarrior, startChargeLoop, startHardshellLoop, startWarcryLoop } from "../base/warrior.js"
 import { attackTheseTypesPriest, startDarkBlessingLoop, startPartyHealLoop } from "../base/priest.js"
 import { doBanking, goFishing, goMining, startMluckLoop } from "../base/merchant.js"
@@ -38,8 +38,8 @@ async function startShared(bot: Character, merchantID: string, friends: Characte
     if (bot.ctype != "merchant") {
         startAvoidStacking(bot)
         startElixirLoop(bot, "elixirluck")
-        if (bot.id == partyLeader) startSendStuffDenyListLoop(bot, [merchantID], ITEMS_TO_HOLD, 500_000)
-        else startSendStuffDenyListLoop(bot, [partyLeader], ITEMS_TO_HOLD, 500_000)
+        if (bot.id == partyLeader) startSendStuffDenylistLoop(bot, [merchantID], ITEMS_TO_HOLD, 500_000)
+        else startSendStuffDenylistLoop(bot, [partyLeader], ITEMS_TO_HOLD, 500_000)
     }
     if (bot.id == partyLeader) startPartyLoop(bot, partyLeader, partyMembers)
     else bot.timeouts.set("partyLoop", setTimeout(async () => { startPartyLoop(bot, partyLeader, partyMembers) }, 2000))
@@ -61,12 +61,12 @@ async function startWarrior(bot: Warrior, merchantID: string, friends: Character
                 return
             }
 
-            const warTargs = getTotalTargets(warrior)
-            const priTargs = priest ? getTotalTargets(priest) : 0
-            const magTargs = mage ? getTotalTargets(mage) : 0
+            const warTargs = warrior.targets
+            const priTargs = priest ? priest.targets : 0
+            const magTargs = mage ? mage.targets : 0
 
             if (priTargs > 0 || magTargs > 0) {
-                if (warTargs > 0) await attackTheseTypesWarrior(bot, undefined, friends, { targetingMe: false, targetingPartyMember: true })
+                if (warTargs > 0) await attackTheseTypesWarrior(bot, undefined, friends, { targetingPartyMember: true })
                 else await attackTheseTypesWarrior(bot, undefined, friends, { targetingPartyMember: true })
             } else {
                 await attackTheseTypesWarrior(bot, [target], friends, { disableStomp: true })
@@ -243,8 +243,8 @@ async function startMerchant(bot: Merchant, friends: Character[], standPlace: IP
 
     startBuyFriendsReplenishablesLoop(bot, friends)
     startMluckLoop(bot)
-    startUpgradeLoop(bot, ITEMS_TO_SELL, ITEMS_TO_UPGRADE)
-    startCompoundLoop(bot, ITEMS_TO_SELL, ITEMS_TO_COMPOUND)
+    startUpgradeLoop(bot, ITEMS_TO_SELL)
+    startCompoundLoop(bot, ITEMS_TO_SELL)
     startCraftLoop(bot, ITEMS_TO_CRAFT)
     startExchangeLoop(bot, ITEMS_TO_EXCHANGE)
     startSellLoop(bot)
@@ -319,7 +319,7 @@ async function startMerchant(bot: Merchant, friends: Character[], standPlace: IP
                 return
             }
 
-            await goMining(bot, "M2")
+            await goMining(bot)
             if (!bot.isOnCooldown("mining") && (bot.hasItem("pickaxe") || bot.isEquipped("pickaxe"))) {
                 bot.timeouts.set("moveLoop", setTimeout(async () => { moveLoop() }, 250))
                 return

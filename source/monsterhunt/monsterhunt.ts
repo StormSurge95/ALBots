@@ -1,13 +1,13 @@
 import AL, { Character, Constants, IPosition, Mage, Merchant, MonsterName, Pathfinder, Priest, ServerIdentifier, ServerRegion, Tools, Warrior } from "alclient"
-import { calculateAttackLoopCooldown, getTotalTargets, goToPotionSellerIfLow, ITEMS_TO_COMPOUND, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_SELL, ITEMS_TO_UPGRADE, LOOP_MS,
+import { calculateAttackLoopCooldown, goToPotionSellerIfLow, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_SELL, LOOP_MS,
     moveInCircle, sleep, startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startCompoundLoop, startCraftLoop, startElixirLoop,
-    startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startScareLoop, startSellLoop, startSendStuffDenyListLoop, startTrackerLoop, startUpgradeLoop } from "../base/general.js"
+    startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startScareLoop, startSellLoop, startSendStuffDenylistLoop, startTrackerLoop, startUpgradeLoop } from "../base/general.js"
 import { offsetPositionParty } from "../base/locations.js"
 import { attackTheseTypesMage } from "../base/mage.js"
 import { doBanking, goFishing, goMining, startMluckLoop } from "../base/merchant.js"
 import { attackTheseTypesPriest, startDarkBlessingLoop, startPartyHealLoop } from "../base/priest.js"
 import { attackTheseTypesWarrior, startChargeLoop, startHardshellLoop, startWarcryLoop } from "../base/warrior.js"
-import { startServer, addBot } from "../../../../ALUI/build/alui/index.js"
+//import { startServer, addBot } from "../../../../ALUI/build/alui/index.js"
 import { Command } from "commander"
 
 /** Config */
@@ -51,15 +51,15 @@ async function startShared(bot: Character, merchantID: string, friends: Characte
     startHealLoop(bot)
     startLootLoop(bot, friends)
     if (bot.ctype == "merchant") {
-        startUpgradeLoop(bot, ITEMS_TO_SELL, ITEMS_TO_UPGRADE)
-        startCompoundLoop(bot, ITEMS_TO_SELL, ITEMS_TO_COMPOUND)
+        startUpgradeLoop(bot, ITEMS_TO_SELL)
+        startCompoundLoop(bot, ITEMS_TO_SELL)
         startCraftLoop(bot, ITEMS_TO_CRAFT)
         startExchangeLoop(bot, ITEMS_TO_EXCHANGE)
         startSellLoop(bot)
     } else {
         startElixirLoop(bot, "elixirluck")
-        if (bot.id == partyLeader) startSendStuffDenyListLoop(bot, [merchantID], ITEMS_TO_HOLD, 500_000)
-        else startSendStuffDenyListLoop(bot, [partyLeader], ITEMS_TO_HOLD, 500_000)
+        if (bot.id == partyLeader) startSendStuffDenylistLoop(bot, [merchantID], ITEMS_TO_HOLD, 500_000)
+        else startSendStuffDenylistLoop(bot, [partyLeader], ITEMS_TO_HOLD, 500_000)
     }
     if (bot.id == partyLeader) startPartyLoop(bot, partyLeader, partyMembers)
     else bot.timeouts.set("partyLoop", setTimeout(async () => { startPartyLoop(bot, partyLeader, partyMembers) }, 2000))
@@ -106,7 +106,7 @@ async function startWarrior(bot: Warrior, merchant: string, friends: Character[]
             const magTargs = (mage) ? mage.targets : 0
 
             if (priTargs > 0 || magTargs > 0) {
-                if (warTargs > 0) await attackTheseTypesWarrior(bot, huntables, friends, { targetingMe: false, targetingPartyMember: true })
+                if (warTargs > 0) await attackTheseTypesWarrior(bot, huntables, friends, { targetingPartyMember: true })
                 else await attackTheseTypesWarrior(bot, huntables, friends, { targetingPartyMember: true })
             } else {
                 const maxTargets = (targets[0]) ? (huntables.indexOf(targets[0]) > 24 ? 3 : undefined) : undefined
@@ -230,7 +230,7 @@ async function startPriest(bot: Priest, merchant: string, friends: Character[]) 
             }
 
             const loc = offsetPositionParty(location, bot, 75)
-            if (getTotalTargets(bot) > 0) {
+            if (bot.targets > 0) {
                 await bot.smartMove(loc, { avoidTownWarps: true }).catch(() => { /* */ })
             } else {
                 await bot.smartMove(loc).catch(() => { /* */ })
@@ -304,7 +304,7 @@ async function startMage(bot: Mage, merchant: string, friends: Character[]) {
             }
 
             const loc = offsetPositionParty(location, bot, 75)
-            if (getTotalTargets(bot) > 0) {
+            if (bot.targets > 0) {
                 await bot.smartMove(loc, { avoidTownWarps: true }).catch(() => { /* */ })
             } else {
                 await bot.smartMove(loc).catch(() => { /* */ })
@@ -416,7 +416,7 @@ async function startMerchant(bot: Merchant, friends: Character[], standPlace: IP
                 return
             }
 
-            await goMining(bot, "M1")
+            await goMining(bot)
             if (bot.canUse("mining", { ignoreEquipped: true })) {
                 bot.timeouts.set("moveLoop", setTimeout(async () => { moveLoop() }, LOOP_MS))
                 return
@@ -495,7 +495,7 @@ async function run() {
     await Promise.all([AL.Game.loginJSONFile("./credentials.json"), AL.Game.getGData(true, false)])
     await AL.Pathfinder.prepare(AL.Game.G)
 
-    await startServer(8080)
+    //await startServer(8080)
 
     // Start all characters
     console.log("Connecting...")
@@ -509,7 +509,7 @@ async function run() {
                 friends[0] = warrior
                 startWarrior(warrior, merchantID, friends)
                 startTrackerLoop(warrior)
-                addBot(warriorID, warrior.socket, warrior)
+                //addBot(warriorID, warrior.socket, warrior)
                 warrior.socket.on("disconnect", async () => { loopBot() })
             } catch (e) {
                 console.error(e)
@@ -534,7 +534,7 @@ async function run() {
                 friends[1] = priest
                 startPriest(priest, merchantID, friends)
                 startTrackerLoop(priest)
-                addBot(priestID, priest.socket, priest)
+                //addBot(priestID, priest.socket, priest)
                 priest.socket.on("disconnect", async () => { loopBot() })
             } catch (e) {
                 console.error(e)
@@ -559,7 +559,7 @@ async function run() {
                 friends[2] = mage
                 startMage(mage, merchantID, friends)
                 startTrackerLoop(mage)
-                addBot(mageID, mage.socket, mage)
+                //addBot(mageID, mage.socket, mage)
                 mage.socket.on("disconnect", async () => { loopBot() })
             } catch (e) {
                 console.error(e)
@@ -584,7 +584,7 @@ async function run() {
                 friends[3] = merchant
                 startMerchant(merchant, friends, { map: "main", x: -250, y: -100 })
                 startTrackerLoop(merchant)
-                addBot(merchantID, merchant.socket, merchant)
+                //addBot(merchantID, merchant.socket, merchant)
                 merchant.socket.on("disconnect", async () => { loopBot() })
             } catch (e) {
                 console.error(e)

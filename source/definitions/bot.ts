@@ -22,7 +22,6 @@ export type Information = {
     merchant: {
         bot: Merchant
         name: string
-        nameAlt: string
         target: MonsterName
     }
     bot1: {

@@ -1,34 +1,40 @@
 import AL, { BankPackName, Character, Entity, IPosition, ItemData, ItemName, MapName, Merchant, MonsterName, NPCName, SmartMoveOptions } from "alclient"
 import FastPriorityQueue from "fastpriorityqueue"
-import { ITEMS_TO_COMPOUND, ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_LIST, ITEMS_TO_SELL, ITEMS_TO_UPGRADE, LOOP_MS, sleep, sortBank, sortInventory } from "./general.js"
-import { bankingPosition, mainFishingSpot, miningSpotM1, miningSpotM2 } from "./locations.js"
+import { ITEMS_TO_CRAFT, ITEMS_TO_EXCHANGE, ITEMS_TO_HOLD, ITEMS_TO_LIST, ITEMS_TO_SELL, LOOP_MS, sleep, sortBank, sortInventory } from "./general.js"
+import { bankingPosition, mainFishingSpot, miningSpot } from "./locations.js"
 import { sortPriority } from "./sort.js"
 
-export const MERCHANT_GOLD_TO_HOLD = 20_000_000
+export const MERCHANT_GOLD_TO_HOLD = 100_000_000
 export const MERCHANT_ITEMS_TO_HOLD: Set<ItemName> = new Set([
     ...ITEMS_TO_HOLD,
-    // Merchant stand
+    // Merchant Stand
     "stand0",
-    // Tokens
-    "monstertoken", "funtoken",
+    // MH Tokens
+    "monstertoken",
     // Scrolls
-    "cscroll0", "cscroll1", "cscroll2", "cscroll3", "scroll0", "scroll1", "scroll2", "scroll3", "scroll4", "strscroll", "intscroll", "dexscroll", "vitscroll",
+    "cscroll0", "cscroll1", "cscroll2", "cscroll3", "scroll0", "scroll1", "scroll2", "scroll3", "scroll4", "strscroll", "intscroll", "dexscroll",
     // Prims
     "offering", "offeringp",
     // Broom for speed
     "broom",
-    // Fishing rod and pickaxe
+    // Fishing Rod and Pickaxe
     "pickaxe", "rod",
     // Main Items
     "dartgun", "wbook1"
 ])
 
 export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName[], friends: Character[] = [], options: {
+    disableCreditCheck?: boolean
     disableZapper?: boolean
     targetingPartyMember?: boolean
     targetingPlayer?: string
 } = {}): Promise<void> {
-    if (bot.c.town) return // Don't attack if teleporting
+    if (bot.c.town || bot.c.fishing || bot.c.mining) return // Don't attack if teleporting, fishing, or mining
+    if (bot.isOnCooldown("scare")) return
+
+    // Adjust options
+    if (options.targetingPlayer && options.targetingPlayer == bot.id) options.targetingPlayer = undefined
+    if (bot.map == "goobrawl") options.disableCreditCheck = true // Goo brawl is cooperative
 
     const priority = sortPriority(bot, types)
 
@@ -36,7 +42,7 @@ export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName
         const targets = new FastPriorityQueue<Entity>(priority)
         for (const target of bot.getEntities({
             canDamage: true,
-            couldGiveCredit: true,
+            couldGiveCredit: options.disableCreditCheck ? undefined : true,
             typeList: types,
             willDieToProjectiles: false,
             withinRange: bot.range
@@ -63,7 +69,7 @@ export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName
         const targets = new FastPriorityQueue<Entity>(priority)
         for (const target of bot.getEntities({
             canDamage: true,
-            couldGiveCredit: true,
+            couldGiveCredit: options.disableCreditCheck ? undefined : true,
             targetingPartyMember: options.targetingPartyMember,
             targetingPlayer: options.targetingPlayer,
             typeList: types,
@@ -81,11 +87,11 @@ export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName
             const zapper: number = bot.locateItem("zapper", bot.items, { returnHighestLevel: true })
             if (bot.isEquipped("zapper") || (zapper !== undefined)) {
                 // Equip zapper
-                if (zapper !== undefined) bot.equip(zapper, "ring1")
+                if (zapper !== undefined) bot.equip(zapper, "ring1").catch(console.error)
 
                 // Zap
                 const promises: Promise<unknown>[] = []
-                promises.push(bot.zapperZap(target.id).catch(e => console.error(e)))
+                promises.push(bot.zapperZap(target.id).catch(console.error))
 
                 // Re-equip ring
                 if (zapper !== undefined) promises.push(bot.equip(zapper, "ring1"))
@@ -120,11 +126,11 @@ export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName
                 const zapper: number = bot.locateItem("zapper", bot.items, { returnHighestLevel: true })
                 if (bot.isEquipped("zapper") || (zapper !== undefined)) {
                     // Equip zapper
-                    if (zapper !== undefined) bot.equip(zapper, "ring1")
+                    if (zapper !== undefined) bot.equip(zapper, "ring1").catch(console.error)
 
                     // Zap
                     const promises: Promise<unknown>[] = []
-                    promises.push(bot.zapperZap(target.id).catch(e => console.error(e)))
+                    promises.push(bot.zapperZap(target.id).catch(console.error))
 
                     // Re-equip ring
                     if (zapper !== undefined) promises.push(bot.equip(zapper, "ring1"))
@@ -143,7 +149,7 @@ export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName
  * @returns
  */
 export async function doEmergencyBanking(bot: Merchant, itemsToHold = MERCHANT_ITEMS_TO_HOLD, itemsToSell = ITEMS_TO_SELL): Promise<void> {
-    if (!bot.map.startsWith("bank")) return // Not in the bank
+    if (bot.map !== "bank" && bot.map !== "bank_b" && bot.map !== "bank_u") return // Not in the bank
     if (bot.esize > 1) return // We have more than one free slot, we're not in trouble
 
     // Check if our bank is full. If it's not, don't perform emergency banking
@@ -168,7 +174,7 @@ export async function doEmergencyBanking(bot: Merchant, itemsToHold = MERCHANT_I
         if (itemsToHold.has(item.name)) continue // We want to hold this item
         if ((item.level ?? 0) <= itemsToSell[item.name]) {
             // We can go sell this item
-            await bot.smartMove("main", { avoidTownWarps: true })
+            await merchantSmartMove(bot, "main", { avoidTownWarps: true })
             await sleep(5000) // Leaving the bank doesn't free up our character right away
             if (bot.items[i]) await bot.sell(i, item.q ?? 1)
             return // We sold something to free up space, go do whatever now.
@@ -259,7 +265,7 @@ export async function doEmergencyBanking(bot: Merchant, itemsToHold = MERCHANT_I
     }
     if (sellThese.length) {
         // Go sell the items
-        await bot.smartMove("main", { avoidTownWarps: true })
+        await merchantSmartMove(bot, "main", { avoidTownWarps: true })
         await sleep(5000) // Leaving the bank doesn't free up our character right away
         for (const i of sellThese) {
             const item = bot.items[i]
@@ -278,18 +284,10 @@ export async function doEmergencyBanking(bot: Merchant, itemsToHold = MERCHANT_I
     // TODO: If we have an upgrade scroll in our inventory, find items to upgrade
 }
 
-export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOLD, itemsToHold = MERCHANT_ITEMS_TO_HOLD, itemsToSell = ITEMS_TO_SELL,
-    itemsToCraft = ITEMS_TO_CRAFT, itemsToExchange = ITEMS_TO_EXCHANGE, itemsToList = ITEMS_TO_LIST): Promise<void> {
-    await bot.smartMove(bankingPosition)
+export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOLD, itemsToHold = MERCHANT_ITEMS_TO_HOLD, itemsToSell = ITEMS_TO_SELL, itemsToCraft = ITEMS_TO_CRAFT, itemsToExchange = ITEMS_TO_EXCHANGE, itemsToList = ITEMS_TO_LIST): Promise<void> {
+    await merchantSmartMove(bot, bankingPosition)
     await bot.openMerchantStand()
 
-    for (let i = 0; i < 20; i++) {
-        if (bot.bank) break
-        await new Promise(resolve => setTimeout(resolve, 250))
-    }
-    if (!bot.bank) throw new Error("We don't have bank information yet; please try again later.")
-
-    //console.log("manage gold...")
     // Deposit extra gold, or get more gold
     const excessGold = bot.gold - goldToHold
     if (excessGold > 0) {
@@ -298,8 +296,7 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         await bot.withdrawGold(Math.min(bot.bank.gold, -excessGold))
     }
 
-    //console.log("manage pvp items...")
-    // Un-PVP items
+    // Un-PVP Items
     for (let i = 0; i < bot.items.length; i++) {
         const item = bot.items[i]
         if (!item) continue
@@ -311,7 +308,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         }
     }
 
-    //console.log("manage items...")
     // Deposit items
     for (let i = 0; i < bot.items.length; i++) {
         const item = bot.items[i]
@@ -338,7 +334,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
     }
     let freeSpaces = bot.esize
 
-    //console.log("withdraw items to hold...")
     // Withdraw things we want to hold
     for (let i = 0; i < bankItems.length && freeSpaces > 2; i++) {
         const item = bankItems[i]
@@ -348,22 +343,21 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         if (bot.hasItem(item.name)) {
             const gInfo = bot.G.items[item.name]
             if (!gInfo.s) continue // Not stackable
-            if (bot.countItem(item.name) + item.q > gInfo.s) continue // We can't stack them in spot
+            if (bot.countItem(item.name) + item.q > gInfo.s) continue // We can't stack them in one spot
 
             const pack = `items${Math.floor(i / 42)}` as Exclude<BankPackName, "gold">
             const slot = i % 42
-            bot.withdrawItem(pack, slot)
+            bot.withdrawItem(pack, slot).catch(console.error)
             continue
         }
 
         const pack = `items${Math.floor(i / 42)}` as Exclude<BankPackName, "gold">
         const slot = i % 42
-        bot.withdrawItem(pack, slot)
+        bot.withdrawItem(pack, slot).catch(console.error)
         freeSpaces--
     }
 
-    //console.log("withdraw compoundable/upgradable items...")
-    // Withdraw compoundable and upgradable things
+    // Withdraw compoundable & upgradable things
     const itemsByLevel = bot.locateItemsByLevel(bankItems)
     for (const dName in itemsByLevel) {
         const itemName = dName as ItemName
@@ -371,8 +365,8 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         if (gInfo.grades == undefined) continue
         const level0Grade = gInfo.grades.lastIndexOf(0) + 1
 
-        if (gInfo.upgrade && freeSpaces > 3 && ITEMS_TO_UPGRADE.has(itemName)) {
-            // Item is upgradeable, withdraw lower level items to upgrade
+        if (gInfo.upgrade && freeSpaces > 3) {
+            // Item is upgradable, withdraw lower level items to upgrade
             let firstItemSlot: number
             let firstItemWithdrawn = false
             for (let dLevel = 12; dLevel >= 0 && freeSpaces > 3; dLevel--) {
@@ -404,7 +398,7 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
                     }
                 }
             }
-        } else if (gInfo.compound && freeSpaces > 5 && ITEMS_TO_COMPOUND.has(itemName)) {
+        } else if (gInfo.compound && freeSpaces > 5) {
             // Item is compoundable, withdraw lower level items to compound
             let firstItemSlot: number
             let firstItemWithdrawn = false
@@ -427,14 +421,14 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
                             continue
                         }
                         if (!firstItemWithdrawn) {
-                            // Withdraw the first item, because our other logic will only upgade if we have two items of the same type in our inventory
+                            // Withdraw the first item, because our other upgrade logic will only upgrade if we have two items of the same type in our inventory
                             const realPack = `items${Math.floor((firstItemSlot) / 42)}` as Exclude<BankPackName, "gold">
                             const realSlot = firstItemSlot % 42
                             await bot.withdrawItem(realPack, realSlot)
                             freeSpaces--
                             firstItemWithdrawn = true
                         }
-                        // Withdraw the items to compound
+                        // Withdraw the item to upgrade
                         const realPack1 = `items${Math.floor((slot1) / 42)}` as Exclude<BankPackName, "gold">
                         const realSlot1 = slot1 % 42
                         await bot.withdrawItem(realPack1, realSlot1)
@@ -459,7 +453,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         }
     }
 
-    //console.log("withdraw items to craft with...")
     // Withdraw items to craft with
     for (const item of itemsToCraft) {
         const gCraft = bot.G.craft[item]
@@ -494,7 +487,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         }
     }
 
-    //console.log("withdraw exchangeable items...")
     // Withdraw exchangeable items
     for (let i = 0; i < bankItems.length && freeSpaces > 2; i++) {
         const item = bankItems[i]
@@ -512,7 +504,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         freeSpaces--
     }
 
-    //console.log("withdraw level 2 golden earrings...")
     // Withdraw level 2 golden earrings
     for (let i = 0; i < bankItems.length && freeSpaces > 2; i++) {
         const item = bankItems[i]
@@ -528,7 +519,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         freeSpaces--
     }
 
-    //console.log("withdraw items to sell...")
     // Withdraw items to sell
     for (let i = 0; i < bankItems.length && freeSpaces > 1; i++) {
         const item = bankItems[i]
@@ -544,7 +534,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         freeSpaces--
     }
 
-    //console.log("withdraw items to list...")
     // Withdraw items to list
     for (let i = 0; i < bankItems.length && freeSpaces > 1; i++) {
         const item = bankItems[i]
@@ -561,7 +550,6 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         freeSpaces--
     }
 
-    //console.log("manage inventory space...")
     // Swap items that are overflowing in inventory if we have space
     for (let i = bot.isize; i < bot.items.length; i++) {
         const item = bot.items[i]
@@ -571,21 +559,19 @@ export async function doBanking(bot: Merchant, goldToHold = MERCHANT_GOLD_TO_HOL
         await bot.swapItems(i, empty)
     }
 
-    //console.log("sort inventory...")
-    await sortInventory(bot)
-    //console.log("sort bank...")
-    await sortBank(bot)
+    sortInventory(bot)
+
+    sortBank(bot)
 
     await bot.closeMerchantStand()
 }
 
 export async function goFishing(bot: Merchant): Promise<void> {
+    if (bot.c.fishing) return // We're already fishing
     if (!bot.canUse("fishing", { ignoreEquipped: true })) return
-
-    await bot.closeMerchantStand().catch(() => { /* */ })
-
     if (!bot.hasItem("rod") && !bot.isEquipped("rod")) {
         if (bot.esize <= 3) return // We don't have space to craft a rod
+        bot.closeMerchantStand().catch(console.error)
 
         // Do banking, but get spider silk, too
         if (!bot.hasItem("spidersilk")) {
@@ -597,12 +583,13 @@ export async function goFishing(bot: Merchant): Promise<void> {
             if (bot.esize <= 2) return // We don't have space to craft a rod
         }
 
-        await bot.smartMove("main", { avoidTownWarps: true })
+        await merchantSmartMove(bot, "main", { avoidTownWarps: true })
         await bot.buy("staff")
         if (!bot.canCraft("rod")) await bot.smartMove("craftsman", { getWithin: AL.Constants.NPC_INTERACTION_DISTANCE / 2 })
         await bot.craft("rod")
     }
-    await bot.smartMove(mainFishingSpot) // Move to fishing spot
+
+    await merchantSmartMove(bot, mainFishingSpot, { attackWhileMoving: true }) // Move to fishing spot
 
     // Equip fishing rod if we don't have it already equipped
     const mainhand = bot.slots.mainhand?.name
@@ -621,10 +608,8 @@ export async function goFishing(bot: Merchant): Promise<void> {
 
     // Re-equip if we changed weapons
     const promises: Promise<unknown>[] = []
-    if (mainhand !== undefined && bot.slots.mainhand?.name !== mainhand) {
+    if (bot.slots.mainhand?.name !== mainhand) {
         if (mainhandSlot !== undefined) promises.push(bot.equip(mainhandSlot, "mainhand"))
-    } else {
-        promises.push(bot.unequip("mainhand"))
     }
     if (bot.slots.offhand?.name !== offhand) {
         if (offhandSlot !== undefined) promises.push(bot.equip(offhandSlot, "offhand"))
@@ -632,16 +617,12 @@ export async function goFishing(bot: Merchant): Promise<void> {
     await Promise.all(promises)
 }
 
-export async function goMining(bot: Merchant, spot: "M1" | "M2"): Promise<void> {
+export async function goMining(bot: Merchant): Promise<void> {
+    if (bot.c.mining) return // We're already mining
     if (!bot.canUse("mining", { ignoreEquipped: true })) return
-
-    let miningSpot: IPosition
-    if (spot == "M1") miningSpot = miningSpotM1
-    else if (spot == "M2") miningSpot = miningSpotM2
-    else throw new Error(`invalid 'spot' value (${spot})`)
-    await bot.closeMerchantStand().catch(() => { /* */ })
     if (!bot.hasItem("pickaxe") && !bot.isEquipped("pickaxe")) {
         if (bot.esize <= 4) return // We don't have space to craft a pickaxe
+        bot.closeMerchantStand().catch(console.error)
 
         // Do banking, but get spider silk, too
         if (!bot.hasItem("spidersilk")) {
@@ -654,14 +635,14 @@ export async function goMining(bot: Merchant, spot: "M1" | "M2"): Promise<void> 
             if (bot.esize <= 3) return // We don't have space to craft a pickaxe
         }
 
-        await bot.smartMove("main", { avoidTownWarps: true })
+        await merchantSmartMove(bot, "main", { avoidTownWarps: true })
         await bot.buy("staff")
         await bot.buy("blade")
         if (!bot.canCraft("pickaxe")) await bot.smartMove("craftsman", { getWithin: AL.Constants.NPC_INTERACTION_DISTANCE / 2 })
         await bot.craft("pickaxe")
     }
 
-    await bot.smartMove(miningSpot) // Move to mining spot
+    await merchantSmartMove(bot, miningSpot, { attackWhileMoving: true }) // Move to mining spot
 
     // Equip pickaxe if we don't have it already equipped
     const mainhand = bot.slots.mainhand?.name
@@ -680,10 +661,8 @@ export async function goMining(bot: Merchant, spot: "M1" | "M2"): Promise<void> 
 
     // Re-equip if we changed weapons
     const promises: Promise<unknown>[] = []
-    if (mainhand !== undefined && bot.slots.mainhand?.name !== mainhand) {
+    if (bot.slots.mainhand?.name !== mainhand) {
         if (mainhandSlot !== undefined) promises.push(bot.equip(mainhandSlot, "mainhand"))
-    } else {
-        promises.push(bot.unequip("mainhand"))
     }
     if (bot.slots.offhand?.name !== offhand) {
         if (offhandSlot !== undefined) promises.push(bot.equip(offhandSlot, "offhand"))
@@ -691,9 +670,9 @@ export async function goMining(bot: Merchant, spot: "M1" | "M2"): Promise<void> 
     await Promise.all(promises)
 }
 
-export async function merchantSmartMove(bot: Merchant, location: IPosition | MapName | NPCName, options: SmartMoveOptions & { attackWhileMoving?: boolean } = {}) {
+export async function merchantSmartMove(bot: Merchant, location: IPosition | MapName | NPCName, options: SmartMoveOptions & { attackWhileMoving?: boolean} = {}) {
     bot.closeMerchantStand().catch((e) => { console.error(e) })
-    if (options.attackWhileMoving) {
+    if ((bot.isEquipped("dartgun") || bot.hasItem("dartgun")) && options.attackWhileMoving) {
         const promises: Promise<void>[] = []
         if (!bot.isEquipped("dartgun") && bot.hasItem("dartgun")) promises.push(bot.equip(bot.locateItem("dartgun", bot.items, { returnHighestLevel: true }), "mainhand"))
         if (!bot.isEquipped("wbook1") && bot.hasItem("wbook1")) promises.push(bot.equip(bot.locateItem("wbook1", bot.items, { returnHighestLevel: true }), "offhand"))
@@ -706,7 +685,7 @@ export async function merchantSmartMove(bot: Merchant, location: IPosition | Map
     await bot.smartMove(location, options)
 }
 
-export function startMluckLoop(bot: Merchant, mluckStrangers = false): void {
+export function startMluckLoop(bot: Merchant): void {
     async function mluckLoop() {
         try {
             if (!bot.socket || bot.socket.disconnected) return
@@ -714,20 +693,18 @@ export function startMluckLoop(bot: Merchant, mluckStrangers = false): void {
             if (bot.canUse("mluck")) {
                 if (!bot.s.mluck || bot.s.mluck.f !== bot.id) await bot.mluck(bot.id) // mluck ourselves
 
-                if (bot.party) {
-                    for (const [, player] of bot.players) {
-                        if (AL.Tools.distance(bot, player) > bot.G.skills.mluck.range) continue // Too far away to mluck
-                        if (player.npc) continue // It's an NPC, we can't mluck NPCs.
-                        if (!bot.partyData.list.includes(player.id) && !mluckStrangers) continue
-                        if (!player.s.mluck) {
-                            await bot.mluck(player.id) // Give the luck
-                        } else if (!player.s.mluck.strong && player.s.mluck.f !== bot.id) {
-                            if (player.id.startsWith("earthMer")) continue
-                            await bot.mluck(player.id) // Steal the mluck
-                        } else if ((!player.s.mluck.strong && player.s.mluck.ms < (bot.G.conditions.mluck.duration - 60000))
-                            || (player.s.mluck.strong && player.s.mluck.f == bot.id && player.s.mluck.ms < (bot.G.conditions.mluck.duration - 60000))) {
-                            await bot.mluck(player.id) // Extend the luck
-                        }
+                for (const [, player] of bot.players) {
+                    if (AL.Tools.distance(bot, player) > bot.G.skills.mluck.range) continue // Too far away to mluck
+                    if (player.npc) continue // It's an NPC, we can't mluck NPCs.
+
+                    if (!player.s.mluck) {
+                        await bot.mluck(player.id) // Give the mluck
+                    } else if (!player.s.mluck.strong && player.s.mluck.f !== bot.id) {
+                        if (!bot.id.startsWith("earthMer") && player.s.mluck.f.startsWith("earthMer")) continue // Don't compete with earthiverse
+                        await bot.mluck(player.id) // Steal the mluck
+                    } else if ((!player.s.mluck.strong && player.s.mluck.ms < (bot.G.conditions.mluck.duration - 60000))
+                        || (player.s.mluck.strong && player.s.mluck.f == bot.id && player.s.mluck.ms < (bot.G.conditions.mluck.duration - 60000))) {
+                        await bot.mluck(player.id) // Extend the mluck
                     }
                 }
             }
@@ -735,7 +712,7 @@ export function startMluckLoop(bot: Merchant, mluckStrangers = false): void {
             console.error(e)
         }
 
-        bot.timeouts.set("mluckLoop", setTimeout(async () => { mluckLoop() }, LOOP_MS))
+        bot.timeouts.set("mluckLoop", setTimeout(mluckLoop, LOOP_MS))
     }
-    mluckLoop()
+    mluckLoop().catch(console.error)
 }

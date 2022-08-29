@@ -4,16 +4,18 @@ import { LOOP_MS } from "./general.js"
 import { sortPriority } from "./sort.js"
 
 export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], friends: Character[] = [], options: {
+    disableCreditCheck?: boolean
     disableGhostLifeEssenceFarm?: boolean
     disableZapper?: boolean
     healStrangers?: boolean
     targetingPartyMember?: boolean
     targetingPlayer?: string
 } = {}): Promise<void> {
+    if (bot.c.town) return // Don't attack if teleporting
+
     // Adjust options
     if (options.targetingPlayer && options.targetingPlayer == bot.id) options.targetingPlayer = undefined
-
-    if (bot.c.town) return // Don't attack if teleporting
+    if (bot.map == "goobrawl") options.disableCreditCheck = true
 
     if (bot.canUse("heal")) {
         const healPriority = (a: Player, b: Player) => {
@@ -70,7 +72,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
         const targets = new FastPriorityQueue<Entity>(attackPriority)
         for (const target of bot.getEntities({
             canDamage: true,
-            couldGiveCredit: true,
+            couldGiveCredit: options.disableCreditCheck ? undefined : true,
             targetingPartyMember: options.targetingPartyMember,
             targetingPlayer: options.targetingPlayer,
             typeList: types,
@@ -120,7 +122,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
     if (!options.disableZapper && bot.canUse("zapperzap", { ignoreEquipped: true }) && bot.cc < 100) {
         const targets = new FastPriorityQueue<Entity>(attackPriority)
         for (const target of bot.getEntities({
-            couldGiveCredit: true,
+            couldGiveCredit: options.disableCreditCheck ? undefined : true,
             targetingPartyMember: options.targetingPartyMember,
             targetingPlayer: options.targetingPlayer,
             typeList: types,

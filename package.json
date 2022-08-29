@@ -5,7 +5,7 @@
 	"main": "index.js",
 	"type": "module",
 	"dependencies": {
-		"alclient": "^0.15.17",
+		"alclient": "^0.15.20",
 		"algui": "^0.1.21",
 		"commander": "^9.4.0",
 		"fastpriorityqueue": "^0.7.2"
