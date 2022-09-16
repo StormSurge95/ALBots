@@ -1,4 +1,4 @@
-import AL, { Character, Entity, Mage, MonsterName, Ranger } from "alclient"
+import AL, { Character, Entity, Mage, MonsterName, Ranger } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
 import { sortPriority } from "./sort.js"
 

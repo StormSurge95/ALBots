@@ -5,26 +5,27 @@
 	"main": "index.js",
 	"type": "module",
 	"dependencies": {
-		"alclient": "^0.15.20",
-		"algui": "^0.1.21",
+		"adventureland-gui": "file:../ALUI",
+		"alclient": "file:../ALClient",
+		"algui": "file:../ALGUI",
 		"commander": "^9.4.0",
 		"fastpriorityqueue": "^0.7.2"
 	},
 	"devDependencies": {
-		"@typescript-eslint/eslint-plugin": "^5.35.1",
-		"@typescript-eslint/parser": "^5.35.1",
+		"@typescript-eslint/eslint-plugin": "^5.36.2",
+		"@typescript-eslint/parser": "^5.36.2",
 		"eslint": "^8.23.0",
 		"rimraf": "^3.0.2",
-		"typescript": "^4.8.2"
+		"typescript": "^4.8.3"
 	},
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"updateReqs": "npm i alclient@latest algui@latest commander@latest fastpriorityqueue@latest",
+		"updateReqs": "npm i ../ALClient/ ../ALGUI/ ../ALUI/ commander@latest fastpriorityqueue@latest",
 		"updateDevs": "npm i --save-dev @typescript-eslint/eslint-plugin@latest @typescript-eslint/parser@latest eslint@latest rimraf@latest typescript@latest",
 		"update": "npm run updateReqs && npm run updateDevs",
 		"clean": "rimraf ./build/*",
 		"build": "tsc",
-		"prepare": "npm run update && npm run clean && npm run build"
+		"prepare": "npm run clean && npm run build"
 	},
 	"repository": {
 		"type": "git",

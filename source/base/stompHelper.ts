@@ -1,4 +1,4 @@
-import AL, { CMData, Warrior } from "alclient"
+import AL, { CMData, Warrior } from "../../../ALClient/build/index.js"
 import { LOOP_MS } from "./general"
 
 /**

@@ -1,8 +1,7 @@
-import AL, { Character, Entity, GameResponseData, GMap, HitData, IEntity, InviteData, IPosition, ItemData, ItemName, ItemType, MapName, Merchant, MonsterName, NPCName, Pathfinder, Player, ServerIdentifier, ServerInfoDataLive, ServerRegion, SlotType, Tools, TradeSlotType } from "alclient"
-import { BankPackName } from "alclient"
+import AL, { BankPackName, Character, Entity, GameResponseData, GMap, HitData, IEntity, InviteData, IPosition, ItemData, ItemName, ItemType, MapName, Merchant, MonsterName, NPCName, Pathfinder, Player, ServerIdentifier, ServerInfoDataLive, ServerRegion, SlotType, Tools, TradeSlotType } from "../../../ALClient/build/index.js"
 import { PathfinderOptions } from "alclient/build/definitions/pathfinder"
 import fs from "fs"
-import { ItemLevelInfo } from "../definitions/bot.js"
+import { ItemLevelInfo, ListInfo } from "../definitions/bot.js"
 import { bankingPosition, offsetPositionParty } from "./locations.js"
 import { sortClosestDistance } from "./sort.js"
 
@@ -28,40 +27,6 @@ export const ITEMS_TO_HOLD: Set<ItemName> = new Set([
     "luckbooster", "goldbooster", "xpbooster",
     // Potions
     "hpot0", "hpot1", "mpot0", "mpot1"
-])
-
-// NOTE: Level 2 lostearrings will also be exchanged in exchangeLoop
-export const ITEMS_TO_EXCHANGE: Set<ItemName> = new Set([
-    // NOTE: Temporary for Christmas
-    // General exchangables
-    "5bucks", "gem0", "gem1",
-    // Gem Fragments for t2 amulets
-    "gemfragment",
-    // Seashells for potions
-    "seashell",
-    // Leather for capes
-    "leather",
-    // Christmas
-    "candycane", "mistletoe", "ornament",
-    // Halloween
-    "candy0", "candy1",
-    // Lunar New Year's
-    "greenenvelope", "redenvelope", "redenvelopev2", "redenvelopev3", "redenvelopev4",
-    // Easter
-    "basketofeggs",
-    // Boxes
-    "armorbox", "bugbountybox", "gift0", "gift1", "mysterybox", "weaponbox", "xbox"
-])
-
-export const ITEMS_TO_CRAFT: Set<ItemName> = new Set([
-    // Good items
-    "firestars", "resistancering", "wingedboots", "frostbow",
-    // Event items
-    "basketofeggs", "xbox",
-    // Higher level elixirs
-    "elixirdex1", "elixirint1", "elixirstr1", "elixirvit1", "elixirdex2", "elixirint2", "elixirstr2", "elixirvit2",
-    // Wanderer's items
-    "wattire", "wshoes", "wbreeches", "wcap", "wgloves"
 ])
 
 export const ITEMS_TO_BUY: Set<ItemName> = new Set([
@@ -118,13 +83,7 @@ export const ITEMS_TO_BUY: Set<ItemName> = new Set([
     //"bottleofxp", "bugbountybox", "computer", "confetti", "cxjar", "emotionjar", "flute", "frozenstone", "monstertoken", "poison", "puppyer", "shadowstone", "snakeoil"
 ])
 
-export const ITEMS_TO_LIST: {
-    // Item name
-    [T in ItemName]?: {
-        // Level: Price
-        [T in number]?: number
-    }
-} = {
+export const ITEMS_TO_LIST: ListInfo = {
     // EASTER
     "basketofeggs": {
         0: 999_999_999
@@ -183,6 +142,9 @@ export const ITEMS_TO_LIST: {
 export const ITEMS_TO_SELL: ItemLevelInfo = {
     // Things that accumulate
     "cclaw": 2, "frankypants": 2, "hpamulet": 2, "hpbelt": 2, "quiver": 2, "ringsj": 2, "slimestaff": 2, "stinger": 2, "vitearring": 2,
+    "helmet1": 2, "gloves1": 2, "shoes1": 2, "pants1": 2, "coat1": 2, "vitring": 2, "cape": 2, "sword": 2, "spear": 2,
+    "intamulet": 2, "dexamulet": 2, "stramulet": 2, "throwingstars": 2, "wbook0": 2,
+    "wcap": 2, "wattire": 2, "wgloves": 2, "wbreeches": 2, "wshoes": 2,
     // Higher level things that accumulate
     "mcape": 2,
     // Default weapons
@@ -190,7 +152,7 @@ export const ITEMS_TO_SELL: ItemLevelInfo = {
     // Default clothing
     "shoes": 2, "pants": 2, "coat": 2, "helmet": 2, "gloves": 2,
     // Things that are now obsolete
-    "dexring": 2, "intring": 2, "intearring": 2, "strearring": 2, "stramulet": 2,
+    "intearring": 2, "strearring": 2, "dexearring": 2,
     // Things in abundance during halloween
     "gphelmet": 2, "phelmet": 2,
     // Things in abundance during christmas
@@ -210,6 +172,22 @@ for (const itemName in ITEMS_TO_SELL) {
         delete ITEMS_TO_SELL[itemName]
     }
 }
+
+export const ITEMS_TO_UPGRADE: Set<ItemName> = new Set([
+    // weapons
+    "ololipop", "glolipop", "t3bow", "oozingterror", "crossbow", "basher",
+    "woodensword", "firebow", "frostbow", "fireblade", "firestaff",
+    // armor
+    //"hhelmet", "harmor", "hgloves", "hpants", "hboots",
+    "wcap", "wattire", "wgloves", "wbreeches", "wshoes",
+    "bcape", "wingedboots", "xarmor", "xboots", "xgloves",
+    "xhelmet", "xpants"
+])
+
+export const ITEMS_TO_COMPOUND: Set<ItemName> = new Set([
+    "lostearring", "t2stramulet", "t2intamulet", "t2dexamulet",
+    "jacko", "wbook1", "orbg", "ctristone"
+])
 
 export const ITEMS_TO_PRIMLING: ItemLevelInfo = {
     // Rare & important items
@@ -244,8 +222,7 @@ export const UPGRADE_COMPOUND_LIMIT: ItemLevelInfo = {
 
 export const REPLENISHABLES_TO_BUY: [ItemName, number][] = [
     ["hpot1", 1000],
-    ["mpot1", 1000],
-    ["xptome", 1]
+    ["mpot1", 1000]
 ]
 
 export function calculateAttackLoopCooldown(bot: Character): number {
@@ -577,7 +554,7 @@ export async function goToAggroMonster(bot: Character, entity: Entity): Promise<
     }
 }
 
-export async function goToBankIfFull(bot: Character, itemsToHold = ITEMS_TO_HOLD, goldToHold = GOLD_TO_HOLD): Promise<void> {
+export async function goToBankIfFull(bot: Character, itemsToHold: Set<ItemName>, goldToHold: number): Promise<void> {
     if (!bot.isFull()) return // We aren't full
 
     await bot.smartMove("fancypots", { avoidTownWarps: true }) // Move to potion seller to give the sell loop a chance to sell things
@@ -1029,7 +1006,7 @@ export function requestMagiportService(bot: Character, targetLocation: IPosition
 const lastCheck = new Map<string, number>()
 export function checkOnlyEveryMS(key: string, msSince = 5000) {
     const last = lastCheck.get(key)
-    if (last && last < Date.now() - msSince) {
+    if (!last || last < Date.now() - msSince) {
         lastCheck.set(key, Date.now())
         return true
     }
@@ -1054,7 +1031,27 @@ export function startAvoidStacking(bot: Character): void {
     })
 }
 
-export function startBuyLoop(bot: Character, itemsToBuy = ITEMS_TO_BUY, replenishablesToBuy = REPLENISHABLES_TO_BUY): void {
+export function startBuyReplenishablesLoop(bot: Character, replenishablesToBuy = REPLENISHABLES_TO_BUY): void {
+    async function buyReplenishablesLoop() {
+        try {
+            if (!bot.socket || bot.socket.disconnected) return
+
+            for (const [item, amount] of replenishablesToBuy) {
+                if (bot.canBuy(item)) {
+                    const num = bot.countItem(item)
+                    const numToBuy = Math.min(amount - num, Math.floor(bot.gold / AL.Game.G.items[item].g))
+                    if (numToBuy > 0) await bot.buy(item, numToBuy)
+                }
+            }
+        } catch (e) {
+            console.error(`[${bot.ctype}]: ${e}`)
+        }
+        bot.timeouts.set("buyReplenishablesLoop", setTimeout(buyReplenishablesLoop, LOOP_MS))
+    }
+    buyReplenishablesLoop().catch(e => console.error(`[${bot.ctype}]: ${e}`))
+}
+
+export function startBuyLoop(bot: Character, itemsToBuy: Set<ItemName>, replenishablesToBuy = REPLENISHABLES_TO_BUY): void {
     const pontyLocations = Pathfinder.locateNPC("secondhands")
     let lastPonty = 0
     async function buyLoop() {
@@ -1167,7 +1164,7 @@ export function startBuyFriendsReplenishablesLoop(bot: Character, friends: Chara
 
                     if (sendThisMany > 0) {
                         let itemPos: number
-                        if (buyThisMany > 0) itemPos = ((await bot.buy(item, buyThisMany)) as any).num
+                        if (buyThisMany > 0) itemPos = (await bot.buy(item, buyThisMany)) as number
                         else itemPos = bot.locateItem(item, bot.items, { quantityGreaterThan: sendThisMany - 1 })
                         await bot.sendItem(friend.id, itemPos, sendThisMany)
                     }
@@ -1197,7 +1194,7 @@ export function startBuyToUpgradeLoop(bot: Character, item: ItemName, quantity: 
     buyToUpgradeLoop()
 }
 
-export function startCompoundLoop(bot: Character, itemsToSell: ItemLevelInfo = ITEMS_TO_SELL): void {
+export function startCompoundLoop(bot: Character, itemsToSell: ItemLevelInfo = ITEMS_TO_SELL, itemsToCompound: Set<ItemName> = undefined): void {
     async function compoundLoop() {
         try {
             if (!bot.socket || bot.socket.disconnected) return
@@ -1218,6 +1215,7 @@ export function startCompoundLoop(bot: Character, itemsToSell: ItemLevelInfo = I
                 const itemName = dName as ItemName
                 const gInfo = bot.G.items[itemName]
                 if (gInfo.compound == undefined) continue // Not compoundable
+                if (itemsToCompound !== undefined && !itemsToCompound.has(itemName)) continue // We don't want to compound this
                 const level0Grade = gInfo.grades.lastIndexOf(0) + 1
                 let foundOne = false
                 for (let dLevel = 7; dLevel >= 0; dLevel--) {
@@ -1247,7 +1245,7 @@ export function startCompoundLoop(bot: Character, itemsToSell: ItemLevelInfo = I
                             const primlingPos = bot.locateItem("offeringp")
                             try {
                                 if (cscrollPos == undefined && !bot.canBuy(cscrollName)) continue // We can't buy a scroll for whatever reason :(
-                                else if (cscrollPos == undefined) cscrollPos = ((await bot.buy(cscrollName)) as any).num
+                                else if (cscrollPos == undefined) cscrollPos = (await bot.buy(cscrollName)) as number
 
                                 if ((ITEMS_TO_PRIMLING[itemName] && dLevel >= ITEMS_TO_PRIMLING[itemName])
                                     || (!ITEMS_TO_PRIMLING[itemName] && ((level0Grade == 0 && dLevel >= 3) || (level0Grade == 1 && dLevel >= 2) || (level0Grade == 2 && dLevel >= 1)))) {
@@ -1276,7 +1274,7 @@ export function startCompoundLoop(bot: Character, itemsToSell: ItemLevelInfo = I
     compoundLoop()
 }
 
-export function startCraftLoop(bot: Character, itemsToCraft = ITEMS_TO_CRAFT): void {
+export function startCraftLoop(bot: Character, itemsToCraft: Set<ItemName>): void {
     async function craftLoop() {
         try {
             if (!bot.socket || bot.socket.disconnected) return
@@ -1333,7 +1331,9 @@ export function startDebugLoop(bot: Character): void {
             data.push(bot.projectiles.size)
             let numListeners = 0
             const listeners = new Map<string, number>()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const name in (bot.socket as any)._callbacks) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const event: any[] = (bot.socket as any)._callbacks[name]
                 listeners.set(name, event.length)
                 numListeners += event.length
@@ -1392,7 +1392,7 @@ export function startElixirLoop(bot: Character, elixir: ItemName): void {
 
             if (!bot.slots.elixir) {
                 let drinkThis = bot.locateItem(elixir)
-                if (drinkThis == undefined && bot.canBuy(elixir)) drinkThis = ((await bot.buy(elixir)) as any).num
+                if (drinkThis == undefined && bot.canBuy(elixir)) drinkThis = (await bot.buy(elixir)) as number
                 if (drinkThis !== undefined) await bot.equip(drinkThis)
             }
         } catch (e) {
@@ -1404,7 +1404,7 @@ export function startElixirLoop(bot: Character, elixir: ItemName): void {
     elixirLoop()
 }
 
-export function startExchangeLoop(bot: Character, itemsToExchange = ITEMS_TO_EXCHANGE): void {
+export function startExchangeLoop(bot: Character, itemsToExchange): void {
     async function exchangeLoop() {
         try {
             if (!bot.socket || bot.socket.disconnected) return
@@ -1415,7 +1415,7 @@ export function startExchangeLoop(bot: Character, itemsToExchange = ITEMS_TO_EXC
                 return
             }
 
-            if (bot.esize > 10 /** Only exchange if we have plenty of space */
+            if (bot.esize >= 5 /** Only exchange if we have plenty of space */
                 && !(bot.G.maps[bot.map] as GMap).mount /** Don't exchange in the bank */) {
                 for (let i = 0; i < bot.items.length; i++) {
                     const item = bot.items[i]
@@ -1938,7 +1938,7 @@ export function startTrackerLoop(bot: Character): void {
     trackerLoop()
 }
 
-export function startUpgradeLoop(bot: Character, itemsToSell: ItemLevelInfo = ITEMS_TO_SELL): void {
+export function startUpgradeLoop(bot: Character, itemsToSell: ItemLevelInfo = ITEMS_TO_SELL, itemsToUpgrade: Set<ItemName> = undefined): void {
     async function upgradeLoop() {
         try {
             if (!bot.socket || bot.socket.disconnected) return
@@ -1959,6 +1959,7 @@ export function startUpgradeLoop(bot: Character, itemsToSell: ItemLevelInfo = IT
                 const itemName = dName as ItemName
                 const gInfo = bot.G.items[itemName]
                 if (gInfo.upgrade == undefined) continue // Not upgradable
+                if (itemsToUpgrade !== undefined && !itemsToUpgrade.has(itemName)) continue // We don't want to upgrade this item
                 const level0Grade = gInfo.grades.lastIndexOf(0) + 1
                 let foundOne = false
                 for (let dLevel = 12; dLevel >= 0; dLevel--) {
@@ -1986,7 +1987,7 @@ export function startUpgradeLoop(bot: Character, itemsToSell: ItemLevelInfo = IT
                             const primlingPos = bot.locateItem("offeringp")
                             try {
                                 if (scrollPos == undefined && !bot.canBuy(scrollName)) continue // We can't buy a scroll for whatever reason :(
-                                else if (scrollPos == undefined) scrollPos = ((await bot.buy(scrollName)) as any).num
+                                else if (scrollPos == undefined) scrollPos = await (bot.buy(scrollName)) as number
 
                                 if ((ITEMS_TO_PRIMLING[itemName] && dLevel >= ITEMS_TO_PRIMLING[itemName])
                                     || (!ITEMS_TO_PRIMLING[itemName] && ((level0Grade == 0 && dLevel >= 8) || (level0Grade == 1 && dLevel >= 6) || (level0Grade == 2 && dLevel >= 4)))) {
@@ -2114,9 +2115,17 @@ export async function sortInventory(bot: Character, items: ItemData[] = bot.item
             otherItem = data.find(a => a.currentI == item.toI)
         }
         if (bankPack) {
-            await bot.swapBankItems(item.currentI, item.toI, bankPack).catch(() => { /* */ })
+            try {
+                await bot.swapBankItems(item.currentI, item.toI, bankPack).catch(() => { /* */ })
+            } catch (e) {
+                console.error(e)
+            }
         } else {
-            await bot.swapItems(item.currentI, item.toI).catch(() => { /* */ })
+            try {
+                await bot.swapItems(item.currentI, item.toI).catch(() => { /* */ })
+            } catch (e) {
+                console.error(e)
+            }
         }
         if (otherItem) otherItem.currentI = item.currentI
         item.currentI = item.toI

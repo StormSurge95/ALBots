@@ -1,4 +1,4 @@
-import AL, { Character, Entity, IPosition, MonsterName } from "alclient"
+import AL, { Character, Entity, IPosition, MonsterName } from "../../../ALClient/build/index.js"
 
 /**
  * This function is meant to be used with `[].sort()`

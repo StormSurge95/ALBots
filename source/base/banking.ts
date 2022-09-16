@@ -1,7 +1,7 @@
 /* eslint-disable sort-keys */
-import AL, { BankPackName, Character, CharacterType, ItemData, ItemName, MapName } from "alclient"
+import AL, { BankPackName, Character, CharacterType, ItemData, ItemName, MapName } from "../../../ALClient/build/index.js"
 import { bankingPosition } from "./locations.js"
-import { MERCHANT_ITEMS_TO_HOLD } from "./merchant.js"
+import { merchantStrategy } from "../strategies.js"
 
 export type ItemCount = {
     name: ItemName
@@ -330,7 +330,7 @@ export function getOfferingToUse(item: ItemData): ItemName {
  * compound and upgrade
  * @param bot
  */
-export function getUnimportantInventorySlots(bot: Character, itemsToHold = MERCHANT_ITEMS_TO_HOLD): number[] {
+export function getUnimportantInventorySlots(bot: Character, itemsToHold): number[] {
     const slots: number[] = []
 
     for (let i = 0; i < bot.items.length; i++) {
@@ -503,7 +503,7 @@ export async function getItemsToCompoundOrUpgrade(bot: Character, counts?: ItemC
         if (a.level !== b.level) return a.level - b.level
     })
 
-    const inventorySlots = getUnimportantInventorySlots(bot)
+    const inventorySlots = getUnimportantInventorySlots(bot, merchantStrategy.hold)
     inventorySlots.pop() // Keep one empty space in case we need to buy a scroll
 
     // This is our list of indexes that contain items that are okay to compound or upgrade

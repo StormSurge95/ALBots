@@ -1,4 +1,4 @@
-import AL, { Character, Entity, Mage, MonsterName, Player, Priest } from "alclient"
+import AL, { Character, Entity, Mage, MonsterName, Player, Priest } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
 import { LOOP_MS } from "./general.js"
 import { sortPriority } from "./sort.js"
@@ -50,7 +50,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
         }
         const toHeal = players.peek()
         if (toHeal) {
-            await bot.heal(toHeal.id)
+            await bot.healSkill(toHeal.id)
             return
         }
     }
@@ -61,7 +61,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
         for (const entity of bot.getEntities({ type: "ghost", withinRange: bot.range })) {
             if (entity.s.healed) continue
 
-            await bot.heal(entity.id)
+            await bot.healSkill(entity.id)
             return
         }
     }

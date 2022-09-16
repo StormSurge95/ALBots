@@ -1,4 +1,4 @@
-import AL, { GData, IEntity, MonsterName, ServerIdentifier, ServerRegion } from "alclient"
+import AL, { GData, IEntity, MonsterName, ServerIdentifier, ServerRegion } from "../../../ALClient/build/index.js"
 
 export const DEFAULT_REGION: ServerRegion = "US"
 export const DEFAULT_IDENTIFIER: ServerIdentifier = "I"

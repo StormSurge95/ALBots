@@ -1,4 +1,4 @@
-import AL, { Character, Entity, Mage, MonsterName, Pathfinder, SlotType, TradeItemInfo, TradeSlotType } from "alclient"
+import AL, { Character, Entity, Mage, MonsterName, Pathfinder, SlotType, TradeItemInfo, TradeSlotType } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
 import { Information } from "../definitions/bot.js"
 import { sortPriority } from "./sort.js"
@@ -271,14 +271,10 @@ export async function magiportFriendsIfNotNearby(bot: Mage, information: Informa
         }
     }
 
-    let myTarget: string
-    if (information.bot1.name == bot.id) myTarget = information.bot1.target
-    else if (information.bot2.name == bot.id) myTarget = information.bot2.target
-    else if (information.bot3.name == bot.id) myTarget = information.bot3.target
+    const myTarget = information.dps.target
 
-    if (information.bot1.name !== bot.id && myTarget == information.bot1.target) offerMagiport(information.bot1.bot)
-    if (information.bot2.name !== bot.id && myTarget == information.bot2.target) offerMagiport(information.bot2.bot)
-    if (information.bot3.name !== bot.id && myTarget == information.bot3.target) offerMagiport(information.bot3.bot)
+    if (myTarget == information.tank.target) offerMagiport(information.tank.bot)
+    if (myTarget == information.healer.target) offerMagiport(information.healer.bot)
 }
 
 export function magiportStrangerIfNotNearby(bot: Mage, id: string): void {

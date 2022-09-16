@@ -1,5 +1,6 @@
-import AL, { Character, Entity, Mage, MonsterName, Paladin } from "alclient"
+import AL, { Character, Entity, Mage, MonsterName, Paladin } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
+import { LOOP_MS } from "./general.js"
 import { sortPriority } from "./sort.js"
 
 export async function attackTheseTypesPaladin(bot: Paladin, types: MonsterName[], friends: Character[] = [], options: {
@@ -130,4 +131,52 @@ export async function attackTheseTypesPaladin(bot: Paladin, types: MonsterName[]
             }
         }
     }
+}
+
+export function startSelfHealLoop(bot: Paladin, ratio = 0.75): void {
+    async function selfHealLoop() {
+        try {
+            if (!bot.socket || bot.socket.disconnected) return
+
+            if (bot.c.town) {
+                bot.timeouts.set("selfHealLoop", setTimeout(selfHealLoop, bot.c.town.ms))
+                return
+            }
+
+            if (bot.canUse("selfheal") && (bot.hp / bot.max_hp) < ratio) {
+                await bot.selfHeal()
+            }
+        } catch (e) {
+            console.error(e)
+        }
+
+        bot.timeouts.set("selfHealLoop", setTimeout(selfHealLoop, Math.max(bot.getCooldown("selfheal"), LOOP_MS)))
+    }
+    selfHealLoop()
+}
+
+export function startManaShieldLoop(bot: Paladin): void {
+    async function manaShieldLoop() {
+        try {
+            if (!bot.socket || bot.socket.disconnected) return
+
+            if (bot.s.mshield && bot.c.town) {
+                bot.timeouts.set("manaShieldLoop", setTimeout(manaShieldLoop, bot.c.town.ms))
+                return
+            }
+
+            if (bot.canUse("mshield")) {
+                if (!bot.s.mshield && bot.couldDieToProjectiles()) {
+                    await bot.manaShieldOn()
+                } else if (bot.s.mshield && !bot.couldDieToProjectiles()) {
+                    await bot.manaShieldOff()
+                }
+            }
+        } catch (e) {
+            console.error(e)
+        }
+
+        bot.timeouts.set("manaShieldLoop", setTimeout(manaShieldLoop, Math.max(bot.getCooldown("mshield"), LOOP_MS)))
+    }
+    manaShieldLoop()
 }

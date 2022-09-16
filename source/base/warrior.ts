@@ -1,4 +1,4 @@
-import AL, { Character, Entity, Mage, MonsterName, Warrior } from "alclient"
+import AL, { Character, Entity, Mage, MonsterName, Warrior } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
 import { LOOP_MS } from "./general.js"
 import { sortPriority } from "./sort.js"
@@ -244,10 +244,9 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
             targetingPlayer: options.targetingPlayer,
             typeList: types,
             willDieToProjectiles: false,
-            withinRange: bot.range
+            withinRange: bot.range * 0.9
         })) {
-            if (!target.target && options.maximumTargets
-                 && (numTargets.magical + numTargets.physical + numTargets.pure) >= options.maximumTargets) {
+            if (!target.target && options.maximumTargets && (numTargets.magical + numTargets.physical + numTargets.pure) >= options.maximumTargets) {
                 // Attacking this entity will push us over our maximumTargets, so don't attack
                 continue
             }
@@ -329,7 +328,8 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
                 }
             }
 
-            await bot.basicAttack(target.id)
+            if (bot.canUse("attack") && AL.Tools.distance(bot, target) < bot.range)
+                await bot.basicAttack(target.id)
         }
     }
 
