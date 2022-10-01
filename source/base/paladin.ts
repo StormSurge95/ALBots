@@ -154,29 +154,3 @@ export function startSelfHealLoop(bot: Paladin, ratio = 0.75): void {
     }
     selfHealLoop()
 }
-
-export function startManaShieldLoop(bot: Paladin): void {
-    async function manaShieldLoop() {
-        try {
-            if (!bot.socket || bot.socket.disconnected) return
-
-            if (bot.s.mshield && bot.c.town) {
-                bot.timeouts.set("manaShieldLoop", setTimeout(manaShieldLoop, bot.c.town.ms))
-                return
-            }
-
-            if (bot.canUse("mshield")) {
-                if (!bot.s.mshield && bot.couldDieToProjectiles()) {
-                    await bot.manaShieldOn()
-                } else if (bot.s.mshield && !bot.couldDieToProjectiles()) {
-                    await bot.manaShieldOff()
-                }
-            }
-        } catch (e) {
-            console.error(e)
-        }
-
-        bot.timeouts.set("manaShieldLoop", setTimeout(manaShieldLoop, Math.max(bot.getCooldown("mshield"), LOOP_MS)))
-    }
-    manaShieldLoop()
-}

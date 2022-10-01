@@ -1,13 +1,18 @@
-import { Character, CMData, Constants, Database, Entity, EntityModel, GMap, IPosition, ItemName, LimitDCReportData, Mage, Merchant, MonsterName, Paladin, Pathfinder, Priest, Ranger, Rogue, SlotType, Tools, UIData, Warrior } from "../../../ALClient/build/index.js"
-import { calculateAttackLoopCooldown, checkOnlyEveryMS, getMonsterHuntTargets, getPriority1Entities, getPriority2Entities, goGetRspeedBuff, goToNearestWalkableToMonster2, goToPotionSellerIfLow, LOOP_MS, REPLENISHABLES_TO_BUY, sleep, sortInventory, startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startBuyReplenishablesLoop, startCompoundLoop, startCraftLoop, startElixirLoop, startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop, startScareLoop, startSellLoop, startSendStuffDenylistLoop, startUpgradeLoop } from "./general.js"
+import { Character, CMData, Constants, Database, Entity, EntityModel, GMap, IPosition, ItemName, LimitDCReportData,
+    Mage, Merchant, MonsterName, Paladin, Pathfinder, Priest, Ranger, Rogue, SlotType, Tools, UIData, Warrior } from "../../../ALClient/build/index.js"
+import { calculateAttackLoopCooldown, checkOnlyEveryMS, getMonsterHuntTargets, getPriority1Entities, getPriority2Entities,
+    goGetRspeedBuff, goToNearestWalkableToMonster2, goToPotionSellerIfLow, LOOP_MS, REPLENISHABLES_TO_BUY, sleep,
+    sortInventory, startAvoidStacking, startBuyFriendsReplenishablesLoop, startBuyLoop, startBuyReplenishablesLoop,
+    startCompoundLoop, startCraftLoop, startElixirLoop, startExchangeLoop, startHealLoop, startLootLoop, startPartyLoop,
+    startScareLoop, startSellLoop, startSendStuffDenylistLoop, startUpgradeLoop } from "./general.js"
 import { doBanking, goFishing, goMining, startDismantleLoop, startMluckLoop } from "./merchant.js"
 import { attackTheseTypesWarrior, startChargeLoop, startHardshellLoop, startWarcryLoop } from "./warrior.js"
-import { Information, MerchantStrategy, MonsterStrategy, Strategy } from "../definitions/bot.js"
+import { CurrencyType, Information, MerchantStrategy, MonsterStrategy, Strategy, TokenType } from "../definitions/bot.js"
 import { attackTheseTypesPriest, startDarkBlessingLoop, startPartyHealLoop } from "./priest.js"
 import { attackTheseTypesRanger } from "./ranger.js"
 import { attackTheseTypesRogue, startRSpeedLoop } from "./rogue.js"
 import { attackTheseTypesMage, magiportStrangerIfNotNearby } from "./mage.js"
-import { attackTheseTypesPaladin, startManaShieldLoop, startSelfHealLoop } from "./paladin.js"
+import { attackTheseTypesPaladin, startSelfHealLoop } from "./paladin.js"
 
 export async function getTarget(bot: Character, strategy: Strategy, information: Information): Promise<MonsterName> {
     for (const entity of await getPriority1Entities(bot)) {
@@ -201,7 +206,7 @@ export async function startMage(bot: Mage, strategy: Strategy, information: Info
 
         bot.timeouts.set("attackLoop", setTimeout(attackLoop, calculateAttackLoopCooldown(bot)))
     }
-    attackLoop().catch(console.error)
+    attackLoop().catch(e => console.error(`[mage]: ${e}`))
 }
 
 export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, information: Information, standPlace: IPosition, partyLeader: string, partyMembers: string[]): Promise<void> {
@@ -218,17 +223,17 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
 
     bot.socket.on("cm", async (data: CMData) => {
         console.log(`~~~ CM from ${data.name} DEBUG ~~~`)
-        console.log(JSON.stringify(data))
+        console.log(JSON.stringify(data, undefined, 4))
     })
 
     bot.socket.on("limitdcreport", async (data: LimitDCReportData) => {
-        console.log("~~~ disconnected for doing too many things ~~~")
-        console.log(JSON.stringify(data))
+        console.log(`~~~ ${bot.id} disconnected for doing too many things ~~~`)
+        console.log(JSON.stringify(data, undefined, 4))
     })
 
     bot.socket.on("ui", async (data: UIData) => {
         if (data.type == "rspeed" && data.to == bot.id) {
-            bot.sendGold(data.from, 1_000).catch(console.error)
+            bot.sendGold(data.from, 1_000).catch(e => console.error(`[${bot.ctype}]: ${e}`))
         }
     })
 
@@ -253,14 +258,37 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
         switch (action) {
             case "buy": {
                 if (state == "add") {
-                    console.log(`[merchant]: adding ${item} to ${action} list!`)
-                    strategy.buy.add(item)
+                    if (!info) {
+                        console.log(`[merchant]: I didn't get any info...I need to know what type of currency to use to buy ${item}...`)
+                        break
+                    }
+                    const currency = info.trim() as CurrencyType
+                    console.log(`[merchant]: adding ${item} to ${action} list (${currency})!`)
+                    strategy.buy[currency].add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.buy])}`)
+                    if (!info) {
+                        console.log("[merchant]: full buy list:")
+                        for (const cType in strategy.buy) {
+                            const currency = cType as CurrencyType
+                            console.log(`${currency}: ${JSON.stringify([...strategy.buy[currency]], undefined, 4)}`)
+                        }
+                        break
+                    }
+                    const currency = info.trim() as CurrencyType
+                    console.log(`[merchant]: ${currency} buy list: ${JSON.stringify([...strategy.buy[currency]], undefined, 4)}`)
                     break
                 } else {
-                    strategy.buy.delete(item)
+                    if (!info) {
+                        console.log(`[merchant]: removing ${item} from all possible ${action} lists...`)
+                        for (const cType in strategy.buy) {
+                            strategy.buy[cType as CurrencyType].delete(item)
+                        }
+                        break
+                    }
+                    const currency = info.trim() as CurrencyType
+                    console.log(`[merchant]: removing ${item} from ${action} list (${currency})!`)
+                    strategy.buy[currency].delete(item)
                     break
                 }
             }
@@ -274,7 +302,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.compound.add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.compound])}`)
+                    console.log(`[merchant]: ${JSON.stringify([...strategy.compound], undefined, 4)}`)
                     break
                 } else {
                     strategy.compound.delete(item)
@@ -291,7 +319,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.craft.add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.craft])}`)
+                    console.log(`[merchant]: ${JSON.stringify([...strategy.craft], undefined, 4)}`)
                     break
                 } else {
                     strategy.craft.delete(item)
@@ -308,7 +336,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.dismantle.add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.dismantle])}`)
+                    console.log(`[merchant]: ${JSON.stringify([...strategy.dismantle], undefined, 4)}`)
                     break
                 } else {
                     strategy.dismantle.delete(item)
@@ -325,7 +353,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.exchange.add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.exchange])}`)
+                    console.log(`[merchant]: ${JSON.stringify([...strategy.exchange], undefined, 4)}`)
                     break
                 } else {
                     strategy.exchange.delete(item)
@@ -338,7 +366,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.hold.add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.hold])}`)
+                    console.log(`[merchant]: ${JSON.stringify([...strategy.hold], undefined, 4)}`)
                     break
                 } else {
                     strategy.hold.delete(item)
@@ -362,7 +390,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.list[item][level] = price
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify(strategy.list)}`)
+                    console.log(`[merchant]: ${JSON.stringify(strategy.list, undefined, 4)}`)
                     break
                 } else {
                     if (!info) {
@@ -396,7 +424,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.sell[item] = level
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify(strategy.sell)}`)
+                    console.log(`[merchant]: ${JSON.stringify(strategy.sell, undefined, 4)}`)
                     break
                 } else {
                     delete strategy.sell[item]
@@ -413,7 +441,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                     strategy.upgrade.add(item)
                     break
                 } else if (state == "list") {
-                    console.log(`[merchant]: ${JSON.stringify([...strategy.upgrade])}`)
+                    console.log(`[merchant]: ${JSON.stringify([...strategy.upgrade], undefined, 4)}`)
                     break
                 } else {
                     strategy.upgrade.delete(item)
@@ -435,7 +463,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
     startDismantleLoop(bot, strategy.dismantle)
     startBuyFriendsReplenishablesLoop(bot, information.friends)
     startMluckLoop(bot)
-    startBuyLoop(bot, strategy.buy)
+    startBuyLoop(bot, strategy.buy.gold)
     startHealLoop(bot)
 
     if (bot.id == partyLeader) startPartyLoop(bot, partyLeader, partyMembers)
@@ -463,7 +491,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
             if (checkOnlyEveryMS(`${bot.id}_bank`, 120_000) || bot.isFull() || bot.hasPvPMarkedItem()) {
                 console.log("[merchant]: We are going to do some banking!")
                 await bot.closeMerchantStand()
-                await doBanking(bot, strategy.maxGold, strategy.hold, strategy.sell, strategy.craft, strategy.exchange, strategy.list, strategy.upgrade, strategy.compound)
+                await doBanking(bot, strategy.maxGold, strategy.hold, strategy.sell, strategy.craft, strategy.exchange, strategy.list, strategy.upgrade, strategy.compound, strategy.dismantle)
                 bot.timeouts.set("moveLoop", setTimeout(moveLoop, 250))
                 return
             }
@@ -546,6 +574,18 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                 }
             }
 
+            // dismantle items if we can
+            for (const item of strategy.dismantle) {
+                if (bot.hasItem(item) && bot.esize >= 2) {
+                    console.log(`[merchant]: we are going to dismantle ${item}!`)
+                    await bot.closeMerchantStand()
+                    const count = bot.countItem(item)
+                    await bot.smartMove("craftsman", { getWithin: Constants.NPC_INTERACTION_DISTANCE / 4, stopIfTrue: () => bot.countItem(item) <= count - 1 })
+                    bot.timeouts.set("moveLoop", setTimeout(moveLoop, 250))
+                    return
+                }
+            }
+
             // Go fishing if we can
             if (strategy.fish) {
                 await goFishing(bot, strategy)
@@ -564,46 +604,19 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
                 }
             }
 
-            if (bot.countItem("blade") < 2 && bot.canBuy("blade")) {
-                await bot.buy("blade")
-                bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
-                return
+            for (const tType in strategy.buy) {
+                if (tType === "gold") continue
+                const tokenType = tType as TokenType
+                for (const item of strategy.buy[tokenType]) {
+                    const count = bot.countItem(tokenType as ItemName)
+                    if (count < bot.G.tokens[tokenType][item]) continue
+                    await bot.smartMove(Pathfinder.locateExchangeNPC(tokenType as ItemName), { getWithin: Constants.NPC_INTERACTION_DISTANCE / 4 })
+                    await bot.buyWithTokens(item, tokenType)
+                }
             }
 
-            if (bot.countItem("wand") < 2 && bot.canBuy("wand")) {
-                await bot.buy("wand")
-                bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
-                return
-            }
-
-            if (bot.countItem("monstertoken") >= bot.G.tokens.monstertoken.funtoken) {
-                await bot.closeMerchantStand()
-                await bot.smartMove(Pathfinder.locateNPC("monsterhunter")[0], { getWithin: Constants.NPC_INTERACTION_DISTANCE / 4 })
-                await bot.buyWithTokens("funtoken", "monstertoken")
-                bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
-                return
-            }
-
-            if (bot.countItem("funtoken") >= bot.G.tokens.funtoken.rabbitsfoot && bot.countItem("rabbitsfoot") < 2) {
-                await bot.closeMerchantStand()
-                await bot.smartMove(Pathfinder.locateNPC("funtokens")[0], { getWithin: Constants.NPC_INTERACTION_DISTANCE / 4 })
-                await bot.buyWithTokens("rabbitsfoot", "funtoken")
-                bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
-                return
-            }
-
-            if (bot.countItem("funtoken") >= bot.G.tokens.funtoken.mshield && bot.countItem("mshield") < 2) {
-                await bot.closeMerchantStand()
-                await bot.smartMove(Pathfinder.locateNPC("funtokens")[0], { getWithin: Constants.NPC_INTERACTION_DISTANCE / 4 })
-                await bot.buyWithTokens("mshield", "funtoken")
-                bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
-                return
-            }
-
-            if (strategy.list["tracker"] // We are selling trackers
-            && !bot.isListedForSale("tracker") // We don't have a tracker listed
-            && !bot.hasItem("tracker", bot.items, { locked: false }) // We don't have an unlocked tracker
-            && bot.countItem("monstertoken") >= bot.G.tokens.monstertoken.tracker) { // We can trade tokens for one
+            // buy tracker with monstertokens if we don't have one to list for sale
+            if (strategy.list["tracker"] && !bot.isListedForSale("tracker") && !bot.hasItem("tracker", bot.items, { locked: false }) && bot.countItem("monstertoken") >= bot.G.tokens.monstertoken.tracker) { // We can trade tokens for one
                 await bot.smartMove("monsterhunter", { getWithin: Constants.NPC_INTERACTION_DISTANCE / 4 })
                 // Buy a tracker with tokens
                 await bot.buyWithTokens("tracker", "monstertoken")
@@ -619,7 +632,7 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
 
         bot.timeouts.set("moveLoop", setTimeout(moveLoop, 250))
     }
-    moveLoop().catch(console.error)
+    moveLoop().catch(e => console.error(`[${bot.ctype}]: ${e}`))
 
     async function merchantLoop() {
         try {
@@ -651,14 +664,13 @@ export async function startMerchant(bot: Merchant, strategy: MerchantStrategy, i
 
         bot.timeouts.set("merchantLoop", setTimeout(merchantLoop, LOOP_MS))
     }
-    merchantLoop().catch(console.error)
+    merchantLoop().catch(e => console.error(`[merchant]: ${e}`))
 }
 
 export async function startPaladin(bot: Paladin, strategy: Strategy, information: Information, partyLeader: string, partyMembers: string[]): Promise<void> {
     startShared(bot, strategy, information, partyLeader, partyMembers)
 
     startSelfHealLoop(bot)
-    startManaShieldLoop(bot)
 
     const idleTargets = getIdleTargets(strategy)
 
@@ -693,7 +705,7 @@ export async function startPaladin(bot: Paladin, strategy: Strategy, information
 
         bot.timeouts.set("attackLoop", setTimeout(attackLoop, calculateAttackLoopCooldown(bot)))
     }
-    attackLoop().catch(console.error)
+    attackLoop().catch(e => console.error(`[paladin]: ${e}`))
 }
 
 export async function startPriest(bot: Priest, strategy: Strategy, information: Information, partyLeader: string, partyMembers: string[]): Promise<void> {
@@ -735,7 +747,7 @@ export async function startPriest(bot: Priest, strategy: Strategy, information: 
 
         bot.timeouts.set("attackLoop", setTimeout(attackLoop, calculateAttackLoopCooldown(bot)))
     }
-    attackLoop().catch(console.error)
+    attackLoop().catch(e => console.error(`[priest]: ${e}`))
 }
 
 export async function startRanger(bot: Ranger, strategy: Strategy, information: Information, partyLeader: string, partyMembers: string[]): Promise<void> {
@@ -775,7 +787,7 @@ export async function startRanger(bot: Ranger, strategy: Strategy, information: 
 
         bot.timeouts.set("attackLoop", setTimeout(attackLoop, calculateAttackLoopCooldown(bot)))
     }
-    attackLoop().catch(console.error)
+    attackLoop().catch(e => console.error(`[ranger]: ${e}`))
 }
 
 export async function startRogue(bot: Rogue, strategy: Strategy, information: Information, partyLeader: string, partyMembers: string[]): Promise<void> {
@@ -817,7 +829,7 @@ export async function startRogue(bot: Rogue, strategy: Strategy, information: In
 
         bot.timeouts.set("attackLoop", setTimeout(attackLoop, calculateAttackLoopCooldown(bot)))
     }
-    attackLoop().catch(console.error)
+    attackLoop().catch(e => console.error(`[${bot.ctype}]: ${e}`))
 }
 
 export async function startWarrior(bot: Warrior, strategy: Strategy, information: Information, partyLeader: string, partyMembers: string[]): Promise<void> {
@@ -859,12 +871,12 @@ export async function startWarrior(bot: Warrior, strategy: Strategy, information
                 }
             }
         } catch (e) {
-            console.error(`[warrior] ${e}`)
+            console.error(`[warrior]: ${e}`)
         }
 
         bot.timeouts.set("attackLoop", setTimeout(attackLoop, calculateAttackLoopCooldown(bot)))
     }
-    attackLoop().catch(console.error)
+    attackLoop().catch(e => console.error(`[${bot.ctype}]: ${e}`))
 }
 
 export async function startShared(bot: Character, strategy: Strategy, information: Information, partyLeader: string, partyMembers: string[]): Promise<void> {
@@ -890,17 +902,17 @@ export async function startShared(bot: Character, strategy: Strategy, informatio
             }
         }
         console.log(`~~~ CM from ${data.name} DEBUG ~~~`)
-        console.log(JSON.stringify(data))
+        console.log(JSON.stringify(data, undefined, 4))
     })
 
     bot.socket.on("limitdcreport", async (data: LimitDCReportData) => {
-        console.log("~~~ disconnected for doing too many things ~~~")
-        console.log(JSON.stringify(data))
+        console.log(`~~~ ${bot.id} disconnected for doing too many things ~~~`)
+        console.log(JSON.stringify(data, undefined, 4))
     })
 
     bot.socket.on("ui", async (data: UIData) => {
         if (data.type == "rspeed" && data.to == bot.id) {
-            bot.sendGold(data.from, 1_000).catch(console.error)
+            bot.sendGold(data.from, 1_000).catch(e => console.error(`[${bot.ctype}]: ${e}`))
         }
     })
 
@@ -1045,7 +1057,7 @@ export async function startShared(bot: Character, strategy: Strategy, informatio
 
         bot.timeouts.set("moveLoop", setTimeout(moveLoop, LOOP_MS))
     }
-    moveLoop().catch(console.error)
+    moveLoop().catch(e => console.error(`[${bot.ctype}]: ${e}`))
 
     const targetLoop = async (): Promise<void> => {
         try {
@@ -1077,5 +1089,5 @@ export async function startShared(bot: Character, strategy: Strategy, informatio
 
         bot.timeouts.set("targetLoop", setTimeout(targetLoop, 1000))
     }
-    targetLoop().catch(console.error)
+    targetLoop().catch(e => console.error(`[${bot.ctype}]: ${e}`))
 }

@@ -88,7 +88,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
 
         // Apply curse if we can't kill it in one shot and we have enough MP
         if (bot.canUse("curse") && bot.mp > (bot.mp_cost + bot.G.skills.curse.mp) && !canKill && !target.immune) {
-            bot.curse(target.id).catch(e => console.error(e))
+            bot.curse(target.id).catch(e => console.error(`[priest]: ${e}`))
         }
 
         // Use our friends to energize for the attack speed boost
@@ -101,7 +101,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
                 if (!friend.canUse("energize")) continue // Friend can't use energize
 
                 // Energize!
-                (friend as Mage).energize(bot.id, Math.min(100, Math.max(1, bot.max_mp - bot.mp))).catch(e => console.error(e))
+                (friend as Mage).energize(bot.id, Math.min(100, Math.max(1, bot.max_mp - bot.mp))).catch(e => console.error(`[priest]: ${e}`))
                 break
             }
         }
@@ -144,7 +144,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
 
                 // Zap
                 const promises: Promise<unknown>[] = []
-                promises.push(bot.zapperZap(target.id).catch(e => console.error(e)))
+                promises.push(bot.zapperZap(target.id).catch(e => console.error(`[priest]: ${e}`)))
 
                 // Re-equip ring
                 if (zapper !== undefined) promises.push(bot.equip(zapper, "ring1"))
@@ -183,7 +183,7 @@ export async function attackTheseTypesPriest(bot: Priest, types: MonsterName[], 
 
                     // Zap
                     const promises: Promise<unknown>[] = []
-                    promises.push(bot.zapperZap(target.id).catch(e => console.error(e)))
+                    promises.push(bot.zapperZap(target.id).catch(e => console.error(`[priest]: ${e}`)))
 
                     // Re-equip ring
                     if (zapper !== undefined) promises.push(bot.equip(zapper, "ring1"))
@@ -202,12 +202,12 @@ export function startDarkBlessingLoop(bot: Priest): void {
 
             if (!bot.s.darkblessing && bot.canUse("darkblessing")) await bot.darkBlessing()
         } catch (e) {
-            console.error(e)
+            console.error(`[priest]: ${e}`)
         }
 
         bot.timeouts.set("darkBlessingLoop", setTimeout(async () => { darkBlessingLoop() }, Math.max(LOOP_MS, bot.getCooldown("darkblessing"))))
     }
-    darkBlessingLoop()
+    darkBlessingLoop().catch(e => console.error(`[priest]: ${e}`))
 }
 
 export function startPartyHealLoop(bot: Priest, friends: Character[] = []): void {
@@ -248,10 +248,10 @@ export function startPartyHealLoop(bot: Priest, friends: Character[] = []): void
                 }
             }
         } catch (e) {
-            console.error(e)
+            console.error(`[priest]: ${e}`)
         }
 
         bot.timeouts.set("partyHealLoop", setTimeout(async () => { partyHealLoop() }, Math.max(bot.getCooldown("partyheal"), LOOP_MS)))
     }
-    partyHealLoop()
+    partyHealLoop().catch(e => console.error(`[priest]: ${e}`))
 }

@@ -1,6 +1,6 @@
 import AL, { Character, Entity, Mage, MonsterName, Warrior } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
-import { LOOP_MS } from "./general.js"
+import { LOOP_MS, sleep } from "./general.js"
 import { sortPriority } from "./sort.js"
 
 export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[], friends: Character[] = [], options: {
@@ -8,7 +8,6 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
     disableCleave?: boolean
     disableCreditCheck?: boolean
     disableStomp?: boolean
-    disableZapper?: boolean
     maximumTargets?: number
     targetingPartyMember?: boolean
     targetingPlayer?: string
@@ -21,11 +20,7 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
     if (options.targetingPlayer || options.targetingPartyMember) options.disableAgitate = true
     if (bot.map == "goobrawl") options.disableCreditCheck = true // Goo brawl is cooperative
 
-    if (!options.disableCleave
-    && bot.mp > bot.G.skills.cleave.mp + bot.mp_cost
-    && bot.canUse("cleave", { ignoreEquipped: true })
-    && (bot.hasItem("bataxe") || bot.hasItem("scythe") || bot.isEquipped("bataxe") || bot.isEquipped("scythe")) // We have something to cleave with
-    ) {
+    if (!options.disableCleave && bot.mp > bot.G.skills.cleave.mp + bot.mp_cost && bot.canUse("cleave", { ignoreEquipped: true }) && (bot.hasItem(["bataxe", "scythe"]) || bot.isEquipped(["bataxe", "scythe"]))) {
         // Calculate how much courage we have left to spare
         const targetingMe = bot.calculateTargets()
 
@@ -119,8 +114,10 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
                 await Promise.all(promises)
             }
 
+            while (bot.s.penalty_cd) await sleep(bot.s.penalty_cd.ms + bot.ping)
+
             // We'll wait, there's a chance cleave could do a lot of damage and kill the entity, so we don't want to waste the attack
-            if (bot.canUse("cleave")) await bot.cleave()
+            if (bot.canUse("cleave")) await bot.cleave().catch(console.error)
 
             // Re-equip if we changed weapons
             const promises: Promise<unknown>[] = []
@@ -188,44 +185,17 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
 
         if (!avoidAgitate && agitateTargets.length > 2 && bot.canUse("agitate")) {
             // Agitate all nearby monsters
-            bot.agitate().catch(console.error)
+            bot.agitate().catch(e => console.error(`[warrior]: ${e}`))
             bot.mp -= bot.G.skills.agitate.mp
         } else if (!(options.maximumTargets && bot.targets + 1 > options.maximumTargets)) {
-            let numNewTargets = 0
-            if (!options.disableZapper && bot.canUse("zapperzap", { ignoreEquipped: true }) && agitateTargets.length) {
-                for (let i = 0; i < agitateTargets.length; i++) {
-                    const target = agitateTargets[i]
-                    if (AL.Tools.distance(bot, target) > bot.G.skills.zapperzap.range) continue // Too far to zap
-                    if (target.target) continue // Don't zap if they have a target, we can't take aggro with a zapper
-
-                    const zapper: number = bot.locateItem("zapper", bot.items, { returnHighestLevel: true })
-                    if ((bot.isEquipped("zapper") || (zapper !== undefined) && bot.cc < 100)) {
-                        // Equip zapper
-                        if (zapper !== undefined) bot.equip(zapper, "ring1")
-
-                        // Zap
-                        bot.zapperZap(target.id).catch(console.error)
-                        bot.mp -= bot.G.skills.zapperzap.mp
-                        target.target = bot.id
-                        numNewTargets += 1
-                        agitateTargets.splice(i, 1) // Remove the entity from the agitate list
-
-                        // Re-equip ring
-                        if (zapper !== undefined) bot.equip(zapper, "ring1")
-                    }
-                    break
-                }
-            }
-
-            if (bot.canUse("taunt") && agitateTargets.length && !(options.maximumTargets && bot.targets + numNewTargets + 1 > options.maximumTargets)) {
+            if (bot.canUse("taunt") && agitateTargets.length && !(options.maximumTargets && bot.targets + 1 > options.maximumTargets)) {
                 for (let i = 0; i < agitateTargets.length; i++) {
                     const target = agitateTargets[i]
                     if (AL.Tools.distance(bot, target) > bot.G.skills.taunt.range) continue // Too far to taunt
                     if (target.target == bot.id) continue // They're targeting us already
-                    bot.taunt(target.id).catch(console.error)
+                    while (bot.s.penalty_cd) await sleep(bot.s.penalty_cd.ms + bot.ping)
+                    await bot.taunt(target.id).catch(e => console.error(`[warrior]: ${e}`))
                     bot.mp -= bot.G.skills.taunt.mp
-                    numNewTargets += 1
-                    agitateTargets.splice(i, 1) // Remove the entity from the agitate list
                     break
                 }
             }
@@ -288,7 +258,9 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
                         await Promise.all(promises)
                     }
 
-                    bot.stomp().catch(console.error)
+                    while (bot.s.penalty_cd) await sleep(bot.s.penalty_cd.ms + bot.ping)
+
+                    await bot.stomp().catch(e => console.error(`[warrior]: ${e}`))
                     bot.mp -= bot.G.skills.stomp.mp
 
                     // Re-equip if we changed weapons
@@ -323,89 +295,15 @@ export async function attackTheseTypesWarrior(bot: Warrior, types: MonsterName[]
                     if (!friend.canUse("energize")) continue // Friend can't use energize
 
                     // Energize!
-                    (friend as Mage).energize(bot.id, Math.min(100, Math.max(1, bot.max_mp - bot.mp))).catch(console.error)
+                    (friend as Mage).energize(bot.id, Math.min(100, Math.max(1, bot.max_mp - bot.mp))).catch(e => console.error(`[warrior]: ${e}`))
                     break
                 }
             }
+
+            while (bot.s.penalty_cd) await sleep(bot.s.penalty_cd.ms + bot.ping)
 
             if (bot.canUse("attack") && AL.Tools.distance(bot, target) < bot.range)
                 await bot.basicAttack(target.id)
-        }
-    }
-
-    if (!options.disableZapper && bot.canUse("zapperzap", { ignoreEquipped: true }) && bot.cc < 100) {
-        const targets = new FastPriorityQueue<Entity>(priority)
-        for (const target of bot.getEntities({
-            canDamage: true,
-            couldGiveCredit: options.disableCreditCheck ? undefined : true,
-            targetingPartyMember: options.targetingPartyMember,
-            targetingPlayer: options.targetingPlayer,
-            typeList: types,
-            willDieToProjectiles: false,
-            withinRange: bot.G.skills.zapperzap.range
-        })) {
-            if (!bot.G.skills.zapperzap.pierces_immunity && target.immune) continue
-            // Zap if we can kill it in one shot, or we have a lot of mp
-            if (bot.canKillInOneShot(target, "zapperzap") || bot.mp >= bot.max_mp - 500) targets.add(target)
-        }
-
-        if (targets.size) {
-            const target = targets.peek()
-
-            const zapper: number = bot.locateItem("zapper", bot.items, { returnHighestLevel: true })
-            if (bot.isEquipped("zapper") || (zapper !== undefined)) {
-                // Equip zapper
-                if (zapper !== undefined) bot.equip(zapper, "ring1")
-
-                // Zap
-                const promises: Promise<unknown>[] = []
-                promises.push(bot.zapperZap(target.id).catch(console.error))
-
-                // Re-equip ring
-                if (zapper !== undefined) promises.push(bot.equip(zapper, "ring1"))
-                await Promise.all(promises)
-            }
-        }
-    }
-
-    if (!options.disableZapper && bot.canUse("zapperzap", { ignoreEquipped: true }) && bot.cc < 100) {
-        let strangerNearby = false
-        for (const [, player] of bot.players) {
-            if (player.isFriendly(bot)) continue // They are friendly
-
-            const distance = AL.Tools.distance(bot, player)
-            if (distance > bot.range + player.range + 100) continue // They are far away
-
-            strangerNearby = true
-            break
-        }
-        if (strangerNearby) {
-            // Zap monsters to kill steal
-            for (const target of bot.getEntities({
-                canDamage: true,
-                couldGiveCredit: true,
-                willDieToProjectiles: true,
-                withinRange: bot.range
-            })) {
-                if (target.immune) continue // Entity won't take damage from zap
-                if (target.target) continue // Already has a target
-                if (target.xp < 0) continue // Don't try to kill steal pets
-
-                const zapper: number = bot.locateItem("zapper", bot.items, { returnHighestLevel: true })
-                if (bot.isEquipped("zapper") || (zapper !== undefined)) {
-                // Equip zapper
-                    if (zapper !== undefined) bot.equip(zapper, "ring1")
-
-                    // Zap
-                    const promises: Promise<unknown>[] = []
-                    promises.push(bot.zapperZap(target.id).catch(console.error))
-
-                    // Re-equip ring
-                    if (zapper !== undefined) promises.push(bot.equip(zapper, "ring1"))
-                    await Promise.all(promises)
-                    break
-                }
-            }
         }
     }
 }
@@ -420,12 +318,12 @@ export function startChargeLoop(bot: Warrior): void {
                 await bot.charge()
             }
         } catch (e) {
-            console.error(e)
+            console.error(`[warrior]: ${e}`)
         }
 
         bot.timeouts.set("chargeLoop", setTimeout(chargeLoop, Math.max(LOOP_MS, bot.getCooldown("charge"))))
     }
-    chargeLoop()
+    chargeLoop().catch(e => console.error(`[warrior]: ${e}`))
 }
 
 export function startHardshellLoop(bot: Warrior): void {
@@ -438,12 +336,12 @@ export function startHardshellLoop(bot: Warrior): void {
                 if (bot.calculateTargets().physical > 0) await bot.hardshell()
             }
         } catch (e) {
-            console.error(e)
+            console.error(`[warrior]: ${e}`)
         }
 
         bot.timeouts.set("hardshellLoop", setTimeout(hardshellLoop, Math.max(LOOP_MS, bot.getCooldown("hardshell"))))
     }
-    hardshellLoop()
+    hardshellLoop().catch(e => console.error(`[warrior]: ${e}`))
 }
 
 export function startWarcryLoop(bot: Warrior): void {
@@ -453,10 +351,10 @@ export function startWarcryLoop(bot: Warrior): void {
 
             if (!bot.s.warcry && bot.canUse("warcry")) await bot.warcry()
         } catch (e) {
-            console.error(e)
+            console.error(`[warrior]: ${e}`)
         }
 
         bot.timeouts.set("warcryLoop", setTimeout(warcryLoop, Math.max(LOOP_MS, bot.getCooldown("warcry"))))
     }
-    warcryLoop()
+    warcryLoop().catch(e => console.error(`[warrior]: ${e}`))
 }

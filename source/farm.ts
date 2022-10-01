@@ -1,6 +1,6 @@
 import AL, { MonsterName } from "../../ALClient/build/index.js"
 import { startServer, addBot } from "../../ALUI/build/alui/index.js"
-import { startTrackerLoop } from "./base/general.js"
+import { startDebugLoop, startTrackerLoop, writeLast1000Events } from "./base/general.js"
 import { partyLeader, partyMembers } from "./base/party.js"
 import { Information } from "./definitions/bot.js"
 import { preparePriest, prepareRanger, prepareWarrior } from "./master.js"
@@ -71,6 +71,7 @@ async function run() {
     console.log("Starting merchant...")
     startMerchantLoop().catch(() => { /* */ })
 
+    let ind = 0
     const startWarriorLoop = async () => {
         const loopBot = async () => {
             try {
@@ -80,6 +81,11 @@ async function run() {
                 prepareWarrior(information.tank.bot, information, partyLeader, partyMembers, { monsterhunt: options.monsterhunt, defaultTarget: options.target })
                 startTrackerLoop(information.tank.bot)
                 addBot(information.tank.bot.id, information.tank.bot.socket, information.tank.bot)
+                startDebugLoop(information.tank.bot, false, 1000)
+                information.tank.bot.socket.on("game_error", async () => {
+                    writeLast1000Events(information.tank.bot, `${information.tank.bot.id}_game_error_${ind}.json`)
+                    ind = (ind >= 10) ? ind % 10 : ind + 1
+                })
                 information.tank.bot.socket.on("disconnect", loopBot)
             } catch (e) {
                 console.error(`[warrior]: ${e}`)

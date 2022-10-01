@@ -1,5 +1,5 @@
 import { Character, IPosition, ItemName, Pathfinder, Priest, Ranger, ServerInfoDataLive, Tools, Warrior } from "../../ALClient/build/index.js"
-import { goToAggroMonster, goToNearestWalkableToMonster, goToNearestWalkableToMonster2, goToNPC, goToPriestIfHurt, goToSpecialMonster, kiteInCircle, moveInCircle, requestMagiportService } from "./base/general.js"
+import { checkOnlyEveryMS, goToAggroMonster, goToNearestWalkableToMonster, goToNearestWalkableToMonster2, goToNPC, goToPriestIfHurt, goToSpecialMonster, kiteInCircle, moveInCircle, requestMagiportService } from "./base/general.js"
 import { caveBatsNearCrypt, caveBatsNearDoor, caveBatsSouthEast, desertlandBScorpions, offsetPositionParty } from "./base/locations.js"
 import { attackTheseTypesPriest } from "./base/priest.js"
 import { attackTheseTypesRanger } from "./base/ranger.js"
@@ -85,8 +85,7 @@ const merchantGear: EquipmentInfo = {
 
 const merchantEquipment: EquipmentInfo = {
     ...merchantGear,
-    mainhand: "dartgun",
-    offhand: "wbook1"
+    mainhand: "broom"
 }
 
 const paladinGear: EquipmentInfo = {
@@ -147,6 +146,13 @@ const priestDamage: EquipmentInfo = {
     offhand: "wbook0"
 }
 
+const priestLuck: EquipmentInfo = {
+    ...luckyArmor,
+    ...luckyAccessories,
+    mainhand: "lmace",
+    offhand: "wbookhs"
+}
+
 const rangerCrit: EquipmentInfo = {
     ...rangerGear,
     mainhand: "t3bow",
@@ -190,7 +196,7 @@ const warriorBurn: EquipmentInfo = {
 }
 
 const warriorLuck: EquipmentInfo = {
-    ...armor,
+    ...luckyArmor,
     ...luckyAccessories,
     mainhand: "fireblade",
     offhand: "mshield"
@@ -199,19 +205,41 @@ const warriorLuck: EquipmentInfo = {
 export const mageStrategy: Strategy = {}
 
 export const merchantStrategy: MerchantStrategy = {
-    buy: new Set<ItemName>([
-        "lostearring", "broom", "xhelmet", "xarmor",
-        "xgloves", "xpants", "xboots", "bataxe", "scythe"
-    ]),
+    buy: {
+        gold: new Set<ItemName>([
+            "lostearring", "broom", "xhelmet", "xarmor",
+            "xgloves", "xpants", "xboots", "bataxe", "scythe"
+        ]),
+        monstertoken: new Set<ItemName>(["funtoken"]),
+        funtoken: new Set<ItemName>(["rabbitsfoot", "xshield", "exoarm"])
+    },
     compound: new Set<ItemName>([
-        "t2stramulet", "t2intamulet", "t2dexamulet", "jacko", "wbook1", "orbg", "ctristone",
-        "strbelt", "intbelt", "dexbelt", "orbofdex", "orbofint", "orbofstr", "skullamulet",
-        "strearring", "intearring", "dexearring", "cearring", "cring", "ringofluck", "rabbitsfoot"
+        // earrings
+        "strearring", "intearring", "dexearring", "cearring",
+        // amulets
+        "t2stramulet", "t2intamulet", "t2dexamulet", "skullamulet",
+        // orbs
+        "orbofstr", "orbofint", "orbofdex", "jacko", "orbg", "rabbitsfoot",
+        // rings
+        "ctristone", "cring", "ringofluck",
+        // belts
+        "strbelt", "intbelt", "dexbelt",
+        // offhands
+        "wbook1",
     ]),
     craft: new Set<ItemName>([
-        "orbg", "ctristone", "elixirdex1", "elixirdex2", "elixirint1", "elixirint2",
-        "elixirstr1", "elixirstr2", "elixirvit1", "elixirvit2", "resistancering",
-        "wingedboots", "resistancering", "armorring"
+        // weapons
+        "firebow", "frostbow", "firestars",
+        // gloves
+        "fierygloves",
+        // boots
+        "wingedboots",
+        // orbs
+        "orbg",
+        // rings
+        "ctristone", "resistancering", "armorring",
+        // elixirs
+        "elixirdex1", "elixirdex2", "elixirint1", "elixirint2", "elixirstr1", "elixirstr2", "elixirvit1", "elixirvit2"
     ]),
     dismantle: new Set<ItemName>([
         "lostearring"
@@ -225,11 +253,24 @@ export const merchantStrategy: MerchantStrategy = {
     fight: false,
     fish: true,
     hold: new Set<ItemName>([
-        "computer", "supercomputer", "tracker", "luckbooster", "goldbooster", "xpbooster",
-        "hpot1", "mpot1", "stand0", "monstertoken", "funtoken", "cscroll0", "cscroll1",
-        "cscroll2", "cscroll3", "scroll0", "scroll1", "scroll2", "scroll3", "scroll4",
-        "strscroll", "intscroll", "dexscroll", "offering", "offeringp", "broom", "pickaxe", "rod",
-        "mshield", "rabbitsfoot", "wand", "blade"
+        // computers
+        "computer", "supercomputer", "tracker",
+        // boosters
+        "luckbooster", "goldbooster", "xpbooster",
+        // pots
+        "hpot1", "mpot1",
+        // stand
+        "stand0",
+        // tokens
+        "monstertoken", "funtoken",
+        // upgrade/compound scrolls
+        "cscroll0", "cscroll1", "cscroll2", "cscroll3", "scroll0", "scroll1", "scroll2", "scroll3", "scroll4",
+        // stat scrolls
+        "strscroll", "intscroll", "dexscroll",
+        // offerings
+        "offering", "offeringp", "broom", "pickaxe", "rod",
+        // items to keep track of for upgrading/compounding
+        "rabbitsfoot"
     ]),
     list: {
         "basketofeggs": {
@@ -273,20 +314,49 @@ export const merchantStrategy: MerchantStrategy = {
     mine: true,
     mluckStrangers: false,
     sell: {
-        "cclaw": 0, "hpamulet": 0, "hpbelt": 0, "quiver": 0, "ringsj": 0, "slimestaff": 0,
-        "stinger": 0, "helmet1": 0, "coat1": 0, "gloves1": 0, "pants1": 0, "shoes1": 0,
-        "cape": 0, "sword": 0, "spear": 0, "intamulet": 0, "dexamulet": 0, "stramulet": 0,
-        "wbook0": 0, "mcape": 0, "wshield": 0, "shoes": 0, "pants": 0, "coat": 0, "helmet": 0,
-        "gloves": 0, "gphelmet": 0, "phelmet": 0, "iceskates": 0, "xmace": 0, "tigerhelmet": 0,
-        "tigershield": 0, "fieldgen0": 0, "snowball": 0
+        // misc weapons
+        "cclaw": 0, "slimestaff": 0, "stinger": 0, "sword": 0, "spear": 0, "xmace": 0,
+        // misc offhands
+        "quiver": 0, "wbook0": 0, "wshield": 0,
+        // helmets
+        "gphelmet": 0, "phelmet": 0, "helmet": 0, "helmet1": 0,
+        // armors
+        "coat1": 0, "coat": 0,
+        // gloves
+        "gloves1": 0,
+        // pants
+        "pants1": 0, "pants": 0,
+        // shoes
+        "shoes1": 0, "iceskates": 0,
+        // accessories
+        "hpamulet": 0, "hpbelt": 0, "ringsj": 0,
+        "intamulet": 0, "dexamulet": 0, "stramulet": 0,
+        // capes
+        "cape": 0, "mcape": 0,
+        // misc items
+        "snowball": 0
     },
     upgrade: new Set<ItemName>([
-        "mshield", "fireblade", "firestaff", "ololipop", "glolipop", "t3bow",
-        "crossbow", "oozingterror", "basher", "woodensword", "firebow", "frostbow",
-        "wcap", "wattire", "wgloves", "wbreeches", "wshoes", "bcape", "wingedboots",
-        "xhelmet", "xarmor", "xgloves", "xpants", "xboots", "xshield", "pmace", "wand",
-        "rod", "pickaxe", "firestars", "dagger", "bowofthedead", "daggerofthedead",
-        "maceofthedead", "pmaceofthedead", "swordofthedead"
+        // weapons
+        "fireblade", "firestaff", "ololipop", "glolipop", "t3bow", "crossbow", "oozingterror",
+        "basher", "woodensword", "firebow", "frostbow", "pmace", "wand", "firestars", "dagger",
+        "bowofthedead", "daggerofthedead", "maceofthedead", "pmaceofthedead", "swordofthedead",
+        // tools
+        "rod", "pickaxe",
+        // shields
+        "mshield", "xshield",
+        // helmets
+        "wcap", "xhelmet",
+        // armors
+        "wattire", "xarmor",
+        // gloves
+        "wgloves", "xgloves",
+        // pants
+        "wbreeches", "xpants",
+        // shoes
+        "wshoes", "xboots", "wingedboots",
+        // capes
+        "bcape"
     ])
 }
 
@@ -302,55 +372,55 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["arcticbee"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 1102, y: -873 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 1102, y: -873 }).catch(() => { /* */ }) },
     },
     armadillo: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["armadillo", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: { mainhand: "pmace", offhand: "wbook1", orb: "jacko" },
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 546, y: 1846 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 546, y: 1846 }).catch(() => { /* */ }) },
     },
     bat: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["bat"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove(caveBatsNearCrypt) },
+        move: async (bot: Priest) => { await bot.smartMove(caveBatsNearCrypt).catch(() => { /* */ }) },
     },
     bbpompom: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["bbpompom"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "winter_cave", x: 71, y: -164 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "winter_cave", x: 71, y: -164 }).catch(() => { /* */ }) },
     },
     bee: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["bee"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 152, y: 1487 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 152, y: 1487 }).catch(() => { /* */ }) },
     },
     bgoo: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["bgoo", "rgoo", "goo"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
         move: async (bot: Priest) => {
-            if (bot.map !== "goobrawl") await bot.smartMove("goobrawl")
+            if (bot.map !== "goobrawl") await bot.smartMove("goobrawl").catch(() => { /* */ })
             goToNearestWalkableToMonster2(bot, ["bgoo", "rgoo", "goo"])
         },
     },
     bigbird: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["bigbird"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 1363, y: 248 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 1363, y: 248 }).catch(() => { /* */ }) },
     },
     boar: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["boar"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 40, y: -1109 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 40, y: -1109 }).catch(() => { /* */ }) },
     },
     booboo: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["booboo"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "spookytown", x: 265, y: -605 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "spookytown", x: 265, y: -605 }).catch(() => { /* */ }) },
     },
     bscorpion: {
         attack: async (bot: Priest, friends: Character[]) => {
@@ -392,7 +462,7 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["crab", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -1182, y: -66 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -1182, y: -66 }).catch(() => { /* */ }) },
     },
     crabx: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["crabx", "phoenix"], friends) },
@@ -421,7 +491,7 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["croc", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 821, y: 1710 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 821, y: 1710 }).catch(() => { /* */ }) },
     },
     cutebee: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["cutebee"], friends) },
@@ -447,7 +517,7 @@ export const priestStrategy: Strategy = {
             if (dragold && dragold.target
                 && bot.party && !bot.partyData.list.includes[dragold.target] // It's not targeting someone in our party
                 && bot.canUse("scare", { ignoreEquipped: true })) {
-                if (bot.canUse("absorb") && Tools.distance(bot, bot.players.get(dragold.target)) < bot.G.skills.absorb.range) bot.absorbSins(dragold.target).catch(console.error)
+                if (bot.canUse("absorb") && Tools.distance(bot, bot.players.get(dragold.target)) < bot.G.skills.absorb.range) bot.absorbSins(dragold.target).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
             await attackTheseTypesPriest(bot, ["dragold", "bat"], friends, { healStrangers: true })
         },
@@ -455,13 +525,13 @@ export const priestStrategy: Strategy = {
         move: async (bot: Priest) => {
             const dragold = bot.getEntity({ returnNearest: true, type: "dragold" })
             if (dragold) {
-                if (!bot.smartMoving) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
-                else if (Tools.distance(dragold, bot.smartMoving) > 100) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                if (!bot.smartMoving) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
+                else if (Tools.distance(dragold, bot.smartMoving) > 100) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
             } else if ((bot.S.dragold as ServerInfoDataLive)?.live) {
                 requestMagiportService(bot, bot.S.dragold as IPosition)
-                if (!bot.smartMoving) goToSpecialMonster(bot, "dragold").catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "dragold").catch(e => console.error(`[${bot.ctype}]: ${e}`))
                 else if (Tools.distance(bot.S.dragold as IPosition, bot.smartMoving) > 100) {
-                    bot.smartMove(bot.S.dragold as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                    bot.smartMove(bot.S.dragold as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
                 }
 
             }
@@ -470,7 +540,7 @@ export const priestStrategy: Strategy = {
     fireroamer: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["fireroamer"], friends) },
         equipment: { ...priestDamage, offhand: "wbookhs", orb: "test_orb" },
-        move: async (bot: Priest) => { await bot.smartMove({ map: "desertland", x: 180, y: -675 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "desertland", x: 180, y: -675 }).catch(() => { /* */ }) },
     },
     franky: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["nerfedmummy", "franky"], friends, { disableCreditCheck: true, healStrangers: true }) },
@@ -479,7 +549,7 @@ export const priestStrategy: Strategy = {
             const nearest = bot.getEntity({ returnNearest: true, type: "franky" })
             if (nearest && Tools.distance(bot, nearest) > 25) {
                 // Move close to Franky because other characters might help blast away mummies
-                await bot.smartMove(nearest, { getWithin: 25 })
+                await bot.smartMove(nearest, { getWithin: 25 }).catch(() => { /* */ })
             } else {
                 await goToSpecialMonster(bot, "franky", { requestMagiport: true })
             }
@@ -501,7 +571,7 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["ghost"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "halloween", x: 276, y: -1224 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "halloween", x: 276, y: -1224 }).catch(() => { /* */ }) },
     },
     goldenbat: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["goldenbat"], friends) },
@@ -513,7 +583,7 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["goo", "rgoo", "bgoo"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -12, y: 787 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -12, y: 787 }).catch(() => { /* */ }) },
     },
     greenjr: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["greenjr", "snake", "osnake"], friends) },
@@ -527,7 +597,7 @@ export const priestStrategy: Strategy = {
             if (grinch && grinch.target
                 && bot.party && !bot.partyData.list.includes[grinch.target] // It's not targeting someone in our party
                 && bot.canUse("scare", { ignoreEquipped: true })) {
-                if (bot.canUse("absorb") && Tools.distance(bot, bot.players.get(grinch.target)) < bot.G.skills.absorb.range) bot.absorbSins(grinch.target).catch(console.error)
+                if (bot.canUse("absorb") && Tools.distance(bot, bot.players.get(grinch.target)) < bot.G.skills.absorb.range) bot.absorbSins(grinch.target).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
             await attackTheseTypesPriest(bot, ["grinch"], friends)
         },
@@ -543,15 +613,15 @@ export const priestStrategy: Strategy = {
             const grinch = bot.getEntity({ returnNearest: true, type: "grinch" })
             if (grinch) {
                 // TODO: If we see Kane, and the grinch is targeting us, kite him to Kane
-                if (!bot.smartMoving) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
-                else if (Tools.distance(grinch, bot.smartMoving) > 100) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                if (!bot.smartMoving) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
+                else if (Tools.distance(grinch, bot.smartMoving) > 100) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
             } else if ((bot.S.grinch as ServerInfoDataLive)?.live) {
                 if (["woffice", "bank", "bank_b", "bank_u"].includes((bot.S.grinch as ServerInfoDataLive).map)) return // Wait for the grinch to move to a place we can attack him
 
                 requestMagiportService(bot, bot.S.grinch as IPosition)
-                if (!bot.smartMoving) goToSpecialMonster(bot, "grinch").catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "grinch").catch(e => console.error(`[${bot.ctype}]: ${e}`))
                 else if (Tools.distance(bot.S.grinch as IPosition, bot.smartMoving) > 100) {
-                    bot.smartMove(bot.S.grinch as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                    bot.smartMove(bot.S.grinch as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
                 }
             }
         }
@@ -560,7 +630,7 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["hen"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -41.5, y: -282 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -41.5, y: -282 }).catch(() => { /* */ }) },
     },
     icegolem: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["icegolem"], friends, { healStrangers: true }) },
@@ -569,11 +639,11 @@ export const priestStrategy: Strategy = {
             const iceGolem = bot.getEntity({ returnNearest: true, type: "icegolem" })
             if (!iceGolem) {
                 if (bot.S.icegolem as ServerInfoDataLive) await requestMagiportService(bot, bot.S.icegolem as IPosition)
-                await bot.smartMove({ map: "winterland", x: 783, y: 277 })
+                await bot.smartMove({ map: "winterland", x: 783, y: 277 }).catch(() => { /* */ })
             }
             if (iceGolem && !Pathfinder.canWalkPath(bot, iceGolem)) {
                 // Cheat and walk across the water.
-                await bot.move(iceGolem.x, iceGolem.y, { disableSafetyCheck: true })
+                await bot.move(iceGolem.x, iceGolem.y, { disableSafetyCheck: true }).catch(() => { /* */ })
             } else if (iceGolem) {
                 await goToNearestWalkableToMonster(bot, ["icegolem"])
             }
@@ -582,7 +652,7 @@ export const priestStrategy: Strategy = {
     iceroamer: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["iceroamer"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 1492, y: 104 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 1492, y: 104 }).catch(() => { /* */ }) },
     },
     jr: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["jr"], friends) },
@@ -590,16 +660,26 @@ export const priestStrategy: Strategy = {
         equipment: priestDamage,
         move: async (bot: Priest) => { await goToSpecialMonster(bot, "jr", { requestMagiport: true }) },
     },
+    mechagnome: {
+        attack: async (bot: Priest, friends: Character[]) => {
+            await attackTheseTypesPriest(bot, ["mechagnome"], friends, { targetingPartyMember: true })
+        },
+        equipment: priestDamage,
+        move: async (bot: Priest) => {
+            await bot.smartMove({ map: "cyberland", x: 25, y: 0 })
+            if (checkOnlyEveryMS("mainframe", 250)) bot.socket.emit("eval", { command: "stop" })
+        }
+    },
     minimush: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["minimush", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "halloween", x: 28, y: 631 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "halloween", x: 28, y: 631 }).catch(() => { /* */ }) },
     },
     mole: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["mole"], friends, { targetingPartyMember: true }) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "tunnel", x: -35, y: -329 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "tunnel", x: -35, y: -329 }).catch(() => { /* */ }) },
     },
     mrgreen: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["mrgreen"], friends, { healStrangers: true }) },
@@ -618,7 +698,7 @@ export const priestStrategy: Strategy = {
     mummy: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["mummy"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "spookytown", x: 270, y: -1115 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "spookytown", x: 270, y: -1115 }).catch(() => { /* */ }) },
     },
     mvampire: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["mvampire", "bat"], friends) },
@@ -635,7 +715,7 @@ export const priestStrategy: Strategy = {
     oneeye: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["oneeye"], friends, { targetingPartyMember: true }) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "level2w", x: -155, y: 0 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "level2w", x: -155, y: 0 }).catch(() => { /* */ }) },
     },
     osnake: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["osnake", "snake"], friends) },
@@ -657,34 +737,34 @@ export const priestStrategy: Strategy = {
             const pinkgoo = bot.getEntity({ returnNearest: true, type: "pinkgoo" })
             if (pinkgoo) {
                 const position = offsetPositionParty(pinkgoo, bot)
-                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* Suppress Warnings */ })
-                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* Suppress Warnings */ })
+                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* */ })
+                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* */ })
             } else {
-                if (!bot.smartMoving) goToSpecialMonster(bot, "pinkgoo", { requestMagiport: true }).catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "pinkgoo", { requestMagiport: true }).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
         },
     },
     plantoid: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["plantoid"], friends, { targetingPartyMember: true }) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "desertland", x: -900, y: -400 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "desertland", x: -900, y: -400 }).catch(() => { /* */ }) },
     },
     poisio: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["poisio"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -101, y: 1360 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -101, y: 1360 }).catch(() => { /* */ }) },
     },
     porcupine: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["porcupine"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "desertland", x: -809, y: 135 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "desertland", x: -809, y: 135 }).catch(() => { /* */ }) },
     },
     pppompom: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["pppompom"], friends, { targetingPartyMember: true }) },
         equipment: { mainhand: "firestaff", offhand: "lantern", orb: "jacko" },
-        move: async (bot: Priest) => { await bot.smartMove({ map: "level2n", x: 120, y: -130 }) }
+        move: async (bot: Priest) => { await bot.smartMove({ map: "level2n", x: 120, y: -130 }).catch(() => { /* */ }) }
     },
     prat: {
         attack: async (bot: Priest, friends: Character[]) => {
@@ -696,13 +776,13 @@ export const priestStrategy: Strategy = {
             else await attackTheseTypesPriest(bot, ["prat"], friends, { targetingPartyMember: false })
         },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "level1", x: -296, y: 557 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "level1", x: -296, y: 557 }).catch(() => { /* */ }) },
     },
     rat: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["rat"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "mansion", x: -224, y: -313 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "mansion", x: -224, y: -313 }).catch(() => { /* */ }) },
     },
     rgoo: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["rgoo", "bgoo", "goo"], friends) },
@@ -721,13 +801,13 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["rooster"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -41.5, y: -282 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -41.5, y: -282 }).catch(() => { /* */ }) },
     },
     scorpion: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["scorpion", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 1598, y: -168 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 1598, y: -168 }).catch(() => { /* */ }) },
     },
     skeletor: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["skeletor", "cgoo"], friends) },
@@ -738,7 +818,7 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["snake", "osnake"], friends) },
         attackWhileIdle: true,
         equipment: priestAttackSpeed,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -62, y: 1901 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -62, y: 1901 }).catch(() => { /* */ }) },
     },
     snowman: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["snowman"], friends) },
@@ -752,19 +832,19 @@ export const priestStrategy: Strategy = {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["spider", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 968, y: -144 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: 968, y: -144 }).catch(() => { /* */ }) },
     },
     squig: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["squig", "squigtoad", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -1155, y: 422 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -1155, y: 422 }).catch(() => { /* */ }) },
     },
     squigtoad: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["squigtoad", "squig", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -1155, y: 422 }) }
+        move: async (bot: Priest) => { await bot.smartMove({ map: "main", x: -1155, y: 422 }).catch(() => { /* */ }) }
     },
     stompy: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["stompy", "wolf", "wolfie", "boar"], friends) },
@@ -774,7 +854,7 @@ export const priestStrategy: Strategy = {
     stoneworm: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["stoneworm"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "spookytown", x: 697, y: 129 }) }
+        move: async (bot: Priest) => { await bot.smartMove({ map: "spookytown", x: 697, y: 129 }).catch(() => { /* */ }) }
     },
     // tinyp: {
     //     attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["tinyp"], friends, { targetingPartyMember: true }) },
@@ -808,8 +888,8 @@ export const priestStrategy: Strategy = {
             const tiger = bot.getEntity({ returnNearest: true, type: "tiger" })
             if (tiger) {
                 const position = offsetPositionParty(tiger, bot)
-                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /** Suppress warnings */ })
-                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* Suppress Warnings */ })
+                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* */ })
+                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* */ })
             } else {
                 if (!bot.smartMoving) goToSpecialMonster(bot, "tiger", { requestMagiport: true })
             }
@@ -835,7 +915,7 @@ export const priestStrategy: Strategy = {
     wolf: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["wolf"], friends) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 420, y: -2525 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "winterland", x: 420, y: -2525 }).catch(() => { /* */ }) },
     },
     wolfie: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["wolfie"], friends) },
@@ -845,7 +925,7 @@ export const priestStrategy: Strategy = {
     xscorpion: {
         attack: async (bot: Priest, friends: Character[]) => { await attackTheseTypesPriest(bot, ["xscorpion"], friends, { targetingPartyMember: true }) },
         equipment: priestDamage,
-        move: async (bot: Priest) => { await bot.smartMove({ map: "halloween", x: -325, y: 725 }) },
+        move: async (bot: Priest) => { await bot.smartMove({ map: "halloween", x: -325, y: 725 }).catch(() => { /* */ }) },
     }
 }
 
@@ -859,38 +939,38 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["arcticbee"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 1082, y: -873 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 1082, y: -873 }).catch(() => { /* */ }) },
     },
     armadillo: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["armadillo", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 526, y: 1846 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 526, y: 1846 }).catch(() => { /* */ }) },
     },
     bat: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["bat"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove(caveBatsNearDoor) },
+        move: async (bot: Ranger) => { await bot.smartMove(caveBatsNearDoor).catch(() => { /* */ }) },
     },
     bbpompom: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["bbpompom"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "winter_cave", x: 51, y: -164 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "winter_cave", x: 51, y: -164 }).catch(() => { /* */ }) },
     },
     bee: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["bee"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 494, y: 1101 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 494, y: 1101 }).catch(() => { /* */ }) },
     },
     bgoo: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["bgoo", "rgoo", "goo"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
         move: async (bot: Ranger) => {
-            if (bot.map !== "goobrawl") await bot.smartMove("goobrawl")
+            if (bot.map !== "goobrawl") await bot.smartMove("goobrawl").catch(() => { /* */ })
             goToNearestWalkableToMonster2(bot, ["bgoo", "rgoo", "goo"])
         },
     },
@@ -898,18 +978,18 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["bigbird"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 1343, y: 248 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 1343, y: 248 }).catch(() => { /* */ }) },
     },
     boar: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["boar"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 20, y: -1109 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 20, y: -1109 }).catch(() => { /* */ }) },
     },
     booboo: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["booboo"], friends) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "spookytown", x: 265, y: -645 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "spookytown", x: 265, y: -645 }).catch(() => { /* */ }) },
     },
     bscorpion: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["bscorpion"], friends, { targetingPartyMember: true }) },
@@ -927,7 +1007,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["crab", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -1202, y: -66 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -1202, y: -66 }).catch(() => { /* */ }) },
     },
     crabx: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["crabx", "phoenix"], friends) },
@@ -956,7 +1036,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["croc", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 801, y: 1710 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 801, y: 1710 }).catch(() => { /* */ }) },
     },
     cutebee: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["cutebee"], friends) },
@@ -984,13 +1064,13 @@ export const rangerStrategy: Strategy = {
 
             const dragold = bot.getEntity({ returnNearest: true, type: "dragold" })
             if (dragold) {
-                if (!bot.smartMoving) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
-                else if (Tools.distance(dragold, bot.smartMoving) > 100) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                if (!bot.smartMoving) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
+                else if (Tools.distance(dragold, bot.smartMoving) > 100) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
             } else if ((bot.S.dragold as ServerInfoDataLive)?.live) {
                 requestMagiportService(bot, bot.S.dragold as IPosition)
-                if (!bot.smartMoving) goToSpecialMonster(bot, "dragold").catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "dragold").catch(e => console.error(`[${bot.ctype}]: ${e}`))
                 else if (Tools.distance(bot.S.dragold as IPosition, bot.smartMoving) > 100) {
-                    bot.smartMove(bot.S.dragold as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                    bot.smartMove(bot.S.dragold as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
                 }
 
             }
@@ -1000,7 +1080,7 @@ export const rangerStrategy: Strategy = {
     fireroamer: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["fireroamer"], friends, { targetingPartyMember: true }) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "desertland", x: 160, y: -675 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "desertland", x: 160, y: -675 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     franky: {
@@ -1010,7 +1090,7 @@ export const rangerStrategy: Strategy = {
             const nearest = bot.getEntity({ returnNearest: true, type: "franky" })
             if (nearest && Tools.distance(bot, nearest) > 25) {
                 // Move close to Franky because other characters might help blast away mummies
-                await bot.smartMove(nearest, { getWithin: 25 })
+                await bot.smartMove(nearest, { getWithin: 25 }).catch(() => { /* */ })
             } else {
                 await goToSpecialMonster(bot, "franky", { requestMagiport: true })
             }
@@ -1027,7 +1107,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["ghost"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "halloween", x: 256, y: -1224 }) }
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "halloween", x: 256, y: -1224 }).catch(() => { /* */ }) }
     },
     goldenbat: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["goldenbat"], friends) },
@@ -1039,13 +1119,13 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["goo", "rgoo", "bgoo"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -32, y: 787 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -32, y: 787 }).catch(() => { /* */ }) },
     },
     greenjr: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["greenjr", "snake", "osnake"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove("greenjr") },
+        move: async (bot: Ranger) => { await bot.smartMove("greenjr").catch(() => { /* */ }) },
     },
     grinch: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["grinch"], friends) },
@@ -1061,15 +1141,15 @@ export const rangerStrategy: Strategy = {
             const grinch = bot.getEntity({ returnNearest: true, type: "grinch" })
             if (grinch) {
                 // TODO: If we see Kane, and the grinch is targeting us, kite him to Kane
-                if (!bot.smartMoving) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
-                else if (Tools.distance(grinch, bot.smartMoving) > 100) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                if (!bot.smartMoving) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
+                else if (Tools.distance(grinch, bot.smartMoving) > 100) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
             } else if ((bot.S.grinch as ServerInfoDataLive)?.live) {
                 if (["woffice", "bank", "bank_b", "bank_u"].includes((bot.S.grinch as ServerInfoDataLive).map)) return // Wait for the grinch to move to a place we can attack him
 
                 requestMagiportService(bot, bot.S.grinch as IPosition)
-                if (!bot.smartMoving) goToSpecialMonster(bot, "grinch").catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "grinch").catch(e => console.error(`[${bot.ctype}]: ${e}`))
                 else if (Tools.distance(bot.S.grinch as IPosition, bot.smartMoving) > 100) {
-                    bot.smartMove(bot.S.grinch as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                    bot.smartMove(bot.S.grinch as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
                 }
             }
         }
@@ -1078,7 +1158,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["hen"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -61.5, y: -282 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -61.5, y: -282 }).catch(() => { /* */ }) },
     },
     icegolem: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["icegolem"], friends) },
@@ -1087,11 +1167,11 @@ export const rangerStrategy: Strategy = {
             const iceGolem = bot.getEntity({ returnNearest: true, type: "icegolem" })
             if (!iceGolem) {
                 if (bot.S.icegolem as ServerInfoDataLive) requestMagiportService(bot, bot.S.icegolem as IPosition)
-                await bot.smartMove({ map: "winterland", x: 783, y: 277 })
+                await bot.smartMove({ map: "winterland", x: 783, y: 277 }).catch(() => { /* */ })
             }
             if (iceGolem && !Pathfinder.canWalkPath(bot, iceGolem)) {
                 // Cheat and walk across the water.
-                await bot.move(iceGolem.x, iceGolem.y, { disableSafetyCheck: true })
+                await bot.move(iceGolem.x, iceGolem.y, { disableSafetyCheck: true }).catch(() => { /* */ })
             } else if (iceGolem) {
                 await goToNearestWalkableToMonster(bot, ["icegolem"])
             }
@@ -1101,7 +1181,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["iceroamer"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 1512, y: 104 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 1512, y: 104 }).catch(() => { /* */ }) },
     },
     jr: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["jr"], friends) },
@@ -1109,16 +1189,26 @@ export const rangerStrategy: Strategy = {
         equipment: rangerDamage,
         move: async (bot: Ranger) => { await goToSpecialMonster(bot, "jr", { requestMagiport: true }) },
     },
+    mechagnome: {
+        attack: async (bot: Ranger, friends: Character[]) => {
+            await attackTheseTypesRanger(bot, ["mechagnome"], friends, { targetingPartyMember: true })
+        },
+        equipment: rangerDamage,
+        move: async (bot: Ranger) => {
+            await bot.smartMove({ map: "cyberland", x: -25, y: 0 })
+            if (checkOnlyEveryMS("mainframe", 250)) bot.socket.emit("eval", { command: "stop" })
+        }
+    },
     minimush: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["minimush", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "halloween", x: 8, y: 631 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "halloween", x: 8, y: 631 }).catch(() => { /* */ }) },
     },
     mole: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["mole"], friends, { targetingPartyMember: true }) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "tunnel", x: -15, y: -329 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "tunnel", x: -15, y: -329 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     mrgreen: {
@@ -1140,7 +1230,7 @@ export const rangerStrategy: Strategy = {
     mummy: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["mummy"], friends) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "spookytown", x: 255, y: -1115 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "spookytown", x: 255, y: -1115 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     mvampire: {
@@ -1153,12 +1243,12 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["nerfedmummy"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove("franky") },
+        move: async (bot: Ranger) => { await bot.smartMove("franky").catch(() => { /* */ }) },
     },
     oneeye: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["oneeye"], friends, { targetingPartyMember: true }) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "level2w", x: -175, y: 0 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "level2w", x: -175, y: 0 }).catch(() => { /* */ }) },
         requireCtype: "priest",
     },
     osnake: {
@@ -1181,17 +1271,17 @@ export const rangerStrategy: Strategy = {
             const pinkgoo = bot.getEntity({ returnNearest: true, type: "pinkgoo" })
             if (pinkgoo) {
                 const position = offsetPositionParty(pinkgoo, bot)
-                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* Suppress Warnings */ })
-                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* Suppress Warnings */ })
+                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* */ })
+                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* */ })
             } else {
-                if (!bot.smartMoving) goToSpecialMonster(bot, "pinkgoo", { requestMagiport: true }).catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "pinkgoo", { requestMagiport: true }).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
         },
     },
     plantoid: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["plantoid"], friends, { targetingPartyMember: true }) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "desertland", x: -700, y: -400 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "desertland", x: -700, y: -400 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     poisio: {
@@ -1199,18 +1289,18 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["poisio"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -121, y: 1360 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -121, y: 1360 }).catch(() => { /* */ }) },
     },
     porcupine: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["porcupine"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "desertland", x: -829, y: 135 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "desertland", x: -829, y: 135 }).catch(() => { /* */ }) },
     },
     pppompom: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["pppompom"], friends, { targetingPartyMember: true }) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "level2n", x: 120, y: -170 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "level2n", x: 120, y: -170 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     prat: {
@@ -1223,7 +1313,7 @@ export const rangerStrategy: Strategy = {
             else await attackTheseTypesRanger(bot, ["prat"], friends, { targetingPartyMember: false })
         },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "level1", x: -280, y: 541 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "level1", x: -280, y: 541 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     rat: {
@@ -1231,7 +1321,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["rat"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "mansion", x: 100, y: -225 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "mansion", x: 100, y: -225 }).catch(() => { /* */ }) },
     },
     rgoo: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["rgoo", "bgoo", "goo"], friends) },
@@ -1250,13 +1340,13 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["rooster"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -61.5, y: -282 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -61.5, y: -282 }).catch(() => { /* */ }) },
     },
     scorpion: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["scorpion", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 1578, y: -168 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 1578, y: -168 }).catch(() => { /* */ }) },
     },
     skeletor: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["skeletor", "cgoo"], friends) },
@@ -1274,7 +1364,7 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["snake", "osnake"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -82, y: 1901 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -82, y: 1901 }).catch(() => { /* */ }) },
     },
     snowman: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["snowman", "arcticbee", "boar", "wolf", "wolfie"], friends) },
@@ -1288,19 +1378,19 @@ export const rangerStrategy: Strategy = {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["spider", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 948, y: -144 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: 948, y: -144 }).catch(() => { /* */ }) },
     },
     squig: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["squig", "squigtoad", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -1175, y: 422 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -1175, y: 422 }).catch(() => { /* */ }) },
     },
     squigtoad: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["squigtoad", "squig", "phoenix"], friends) },
         attackWhileIdle: true,
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -1175, y: 422 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "main", x: -1175, y: 422 }).catch(() => { /* */ }) },
     },
     stompy: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["stompy", "wolf", "wolfie", "boar"], friends, { targetingPartyMember: true }) },
@@ -1311,7 +1401,7 @@ export const rangerStrategy: Strategy = {
     stoneworm: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["stoneworm"], friends) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "spookytown", x: 677, y: 129 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "spookytown", x: 677, y: 129 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     // tinyp: {
@@ -1355,10 +1445,10 @@ export const rangerStrategy: Strategy = {
             const tiger = bot.getEntity({ returnNearest: true, type: "tiger" })
             if (tiger) {
                 const position = offsetPositionParty(tiger, bot)
-                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* Suppress Warnings */ })
-                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* Suppress Warnings */ })
+                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* */ })
+                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* */ })
             } else {
-                if (!bot.smartMoving) goToSpecialMonster(bot, "tiger", { requestMagiport: true }).catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "tiger", { requestMagiport: true }).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
         }
     },
@@ -1382,7 +1472,7 @@ export const rangerStrategy: Strategy = {
     wolf: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["wolf"], friends) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 400, y: -2525 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "winterland", x: 400, y: -2525 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     wolfie: {
@@ -1394,7 +1484,7 @@ export const rangerStrategy: Strategy = {
     xscorpion: {
         attack: async (bot: Ranger, friends: Character[]) => { await attackTheseTypesRanger(bot, ["xscorpion"], friends, { targetingPartyMember: true }) },
         equipment: rangerDamage,
-        move: async (bot: Ranger) => { await bot.smartMove({ map: "halloween", x: -325, y: 775 }) },
+        move: async (bot: Ranger) => { await bot.smartMove({ map: "halloween", x: -325, y: 775 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     }
 }
@@ -1438,27 +1528,27 @@ export const warriorStrategy: Strategy = {
         attackWhileIdle: true,
         equipment: warriorBurn,
         move: async (bot: Warrior) => {
-            if (bot.map !== "goobrawl") await bot.smartMove("goobrawl")
+            if (bot.map !== "goobrawl") await bot.smartMove("goobrawl").catch(() => { /* */ })
             goToNearestWalkableToMonster2(bot, ["bgoo", "rgoo", "goo"])
         },
     },
     bigbird: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["bigbird"], friends) },
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "main", x: 1323, y: 248 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "main", x: 1323, y: 248 }).catch(() => { /* */ }) },
         requireCtype: "priest",
     },
     boar: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["boar"], friends) },
         attackWhileIdle: true,
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "winterland", x: 0, y: -1109 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "winterland", x: 0, y: -1109 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     booboo: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["booboo"], friends, { maximumTargets: 1 }) },
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "spookytown", x: 265, y: -625 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "spookytown", x: 265, y: -625 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     bscorpion: {
@@ -1496,7 +1586,7 @@ export const warriorStrategy: Strategy = {
     },
     crabxx: {
         attack: async (bot: Warrior, friends: Character[]) => {
-            await attackTheseTypesWarrior(bot, ["crabx"], friends, { disableCreditCheck: true, disableZapper: true })
+            await attackTheseTypesWarrior(bot, ["crabx"], friends, { disableCreditCheck: true })
             await attackTheseTypesWarrior(bot, ["crabxx", "crabx"], friends, { disableCreditCheck: true })
         },
         attackWhileIdle: true,
@@ -1536,8 +1626,8 @@ export const warriorStrategy: Strategy = {
                 && bot.party && !bot.partyData.list.includes[dragold.target] // It's not targeting someone in our party
                 && priest && Tools.distance(bot, priest) < priest.range
                 && bot.canUse("scare", { ignoreEquipped: true })) {
-                if (bot.canUse("taunt") && Tools.distance(dragold, bot) < bot.G.skills.taunt.range) bot.taunt(dragold.id).catch(console.error)
-                else if (bot.canUse("agitate") && Tools.distance(bot, dragold) < bot.G.skills.agitate.range) bot.agitate().catch(console.error)
+                if (bot.canUse("taunt") && Tools.distance(dragold, bot) < bot.G.skills.taunt.range) bot.taunt(dragold.id).catch(e => console.error(`[${bot.ctype}]: ${e}`))
+                else if (bot.canUse("agitate") && Tools.distance(bot, dragold) < bot.G.skills.agitate.range) bot.agitate().catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
             await attackTheseTypesWarrior(bot, ["dragold", "bat"], friends)
         },
@@ -1547,13 +1637,13 @@ export const warriorStrategy: Strategy = {
 
             const dragold = bot.getEntity({ returnNearest: true, type: "dragold" })
             if (dragold) {
-                if (!bot.smartMoving) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
-                else if (Tools.distance(dragold, bot.smartMoving) > 100) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                if (!bot.smartMoving) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
+                else if (Tools.distance(dragold, bot.smartMoving) > 100) bot.smartMove(dragold, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
             } else if ((bot.S.dragold as ServerInfoDataLive)?.live) {
                 requestMagiportService(bot, bot.S.dragold as IPosition)
-                if (!bot.smartMoving) goToSpecialMonster(bot, "dragold").catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "dragold").catch(e => console.error(`[${bot.ctype}]: ${e}`))
                 else if (Tools.distance(bot.S.dragold as IPosition, bot.smartMoving) > 100) {
-                    bot.smartMove(bot.S.dragold as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                    bot.smartMove(bot.S.dragold as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
                 }
 
             }
@@ -1569,7 +1659,7 @@ export const warriorStrategy: Strategy = {
             await attackTheseTypesWarrior(bot, ["fireroamer"], friends, { disableAgitate: true, targetingPartyMember: true })
         },
         equipment: warriorBow,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "desertland", x: 200, y: -675 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "desertland", x: 200, y: -675 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     franky: {
@@ -1623,8 +1713,8 @@ export const warriorStrategy: Strategy = {
             if (grinch
                 && bot.party && !bot.partyData.list.includes[grinch.target] // It's not targeting someone in our party
                 && bot.canUse("scare", { ignoreEquipped: true })) {
-                if (bot.canUse("taunt") && Tools.distance(grinch, bot) < bot.G.skills.taunt.range) bot.taunt(grinch.id).catch(console.error)
-                else if (bot.canUse("agitate") && Tools.distance(bot, grinch) < bot.G.skills.agitate.range) bot.agitate().catch(console.error)
+                if (bot.canUse("taunt") && Tools.distance(grinch, bot) < bot.G.skills.taunt.range) bot.taunt(grinch.id).catch(e => console.error(`[${bot.ctype}]: ${e}`))
+                else if (bot.canUse("agitate") && Tools.distance(bot, grinch) < bot.G.skills.agitate.range) bot.agitate().catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
             const kane = bot.players.get("Kane")
             if (kane && Tools.distance(bot, kane) < 400) {
@@ -1645,15 +1735,15 @@ export const warriorStrategy: Strategy = {
             const grinch = bot.getEntity({ returnNearest: true, type: "grinch" })
             if (grinch) {
                 // TODO: If we see Kane, and the grinch is targeting us, kite him to Kane
-                if (!bot.smartMoving) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
-                else if (Tools.distance(grinch, bot.smartMoving) > 100) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                if (!bot.smartMoving) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
+                else if (Tools.distance(grinch, bot.smartMoving) > 100) bot.smartMove(grinch, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
             } else if ((bot.S.grinch as ServerInfoDataLive)?.live) {
                 if (["woffice", "bank", "bank_b", "bank_u"].includes((bot.S.grinch as ServerInfoDataLive).map)) return // Wait for the grinch to move to a place we can attack him
 
                 requestMagiportService(bot, bot.S.grinch as IPosition)
-                if (!bot.smartMoving) goToSpecialMonster(bot, "grinch").catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "grinch").catch(e => console.error(`[${bot.ctype}]: ${e}`))
                 else if (Tools.distance(bot.S.grinch as IPosition, bot.smartMoving) > 100) {
-                    bot.smartMove(bot.S.grinch as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(console.error)
+                    bot.smartMove(bot.S.grinch as IPosition, { getWithin: Math.min(bot.range - 10, 50) }).catch(e => console.error(`[${bot.ctype}]: ${e}`)).catch(() => { /* */ })
                 }
             }
         }
@@ -1662,7 +1752,7 @@ export const warriorStrategy: Strategy = {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["hen"], friends) },
         attackWhileIdle: true,
         equipment: warriorAOE,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "main", x: -81.5, y: -282 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "main", x: -81.5, y: -282 }).catch(() => { /* */ }) },
     },
     icegolem: {
         attack: async (bot: Warrior, friends: Character[]) => {
@@ -1670,8 +1760,8 @@ export const warriorStrategy: Strategy = {
             if (icegolem
                 && bot.party && !bot.partyData.list.includes[icegolem.target] // It's not targeting someone in our party
                 && bot.canUse("scare", { ignoreEquipped: true })) {
-                if (bot.canUse("taunt") && Tools.distance(icegolem, bot) < bot.G.skills.taunt.range) bot.taunt(icegolem.id).catch(console.error)
-                else if (bot.canUse("agitate") && Tools.distance(bot, icegolem) < bot.G.skills.agitate.range) bot.agitate().catch(console.error)
+                if (bot.canUse("taunt") && Tools.distance(icegolem, bot) < bot.G.skills.taunt.range) bot.taunt(icegolem.id).catch(e => console.error(`[${bot.ctype}]: ${e}`))
+                else if (bot.canUse("agitate") && Tools.distance(bot, icegolem) < bot.G.skills.agitate.range) bot.agitate().catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
             await attackTheseTypesWarrior(bot, ["icegolem"], friends)
         },
@@ -1680,11 +1770,11 @@ export const warriorStrategy: Strategy = {
             const iceGolem = bot.getEntity({ returnNearest: true, type: "icegolem" })
             if (!iceGolem) {
                 if (bot.S.icegolem as ServerInfoDataLive) requestMagiportService(bot, bot.S.icegolem as IPosition)
-                await bot.smartMove({ map: "winterland", x: 783, y: 277 })
+                await bot.smartMove({ map: "winterland", x: 783, y: 277 }).catch(() => { /* */ })
             }
             if (iceGolem && !Pathfinder.canWalkPath(bot, iceGolem)) {
                 // Cheat and walk across the water.
-                await bot.move(iceGolem.x, iceGolem.y, { disableSafetyCheck: true })
+                await bot.move(iceGolem.x, iceGolem.y, { disableSafetyCheck: true }).catch(() => { /* */ })
             } else if (iceGolem) {
                 await goToNearestWalkableToMonster(bot, ["icegolem"])
             }
@@ -1703,6 +1793,16 @@ export const warriorStrategy: Strategy = {
         attackWhileIdle: true,
         equipment: warriorBurn,
         move: async (bot: Warrior) => { await goToSpecialMonster(bot, "jr", { requestMagiport: true }) },
+    },
+    mechagnome: {
+        attack: async (bot: Warrior, friends: Character[]) => {
+            await attackTheseTypesWarrior(bot, ["mechagnome"], friends, { disableCleave: true })
+        },
+        equipment: warriorBurn,
+        move: async (bot: Warrior) => {
+            goToNearestWalkableToMonster2(bot, ["mechagnome"], { map: "cyberland", x: 0, y: 0 })
+            if (checkOnlyEveryMS("mainframe", 250)) bot.socket.emit("eval", { command: "stop" })
+        }
     },
     minimush: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["minimush", "phoenix"], friends, { disableAgitate: true }) },
@@ -1739,7 +1839,7 @@ export const warriorStrategy: Strategy = {
             await attackTheseTypesWarrior(bot, ["mole"], friends, { maximumTargets: 3 })
         },
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "tunnel", x: 5, y: -329 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "tunnel", x: 5, y: -329 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     mrgreen: {
@@ -1775,10 +1875,10 @@ export const warriorStrategy: Strategy = {
             }
             if (highestMummyLevel <= 1) {
                 // Mummies are low level, stay and rage
-                await bot.smartMove({ map: "spookytown", x: 240, y: -1130 }).catch(() => { /* Suppress errors */ })
+                await bot.smartMove({ map: "spookytown", x: 240, y: -1130 }).catch(() => { /* */ })
             } else {
                 // Stay back
-                await bot.smartMove({ map: "spookytown", x: 240, y: -1115 }).catch(() => { /* Suppress errors */ })
+                await bot.smartMove({ map: "spookytown", x: 240, y: -1115 }).catch(() => { /* */ })
             }
         },
         requireCtype: "priest"
@@ -1798,7 +1898,7 @@ export const warriorStrategy: Strategy = {
     oneeye: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["oneeye"], friends, { maximumTargets: 1, disableAgitate: true }) },
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "level2w", x: -195, y: 0 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "level2w", x: -195, y: 0 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     osnake: {
@@ -1821,10 +1921,10 @@ export const warriorStrategy: Strategy = {
             const pinkgoo = bot.getEntity({ returnNearest: true, type: "pinkgoo" })
             if (pinkgoo) {
                 const position = offsetPositionParty(pinkgoo, bot)
-                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* Suppress Warnings */ })
-                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* Suppress Warnings */ })
+                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* */ })
+                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* */ })
             } else {
-                if (!bot.smartMoving) goToSpecialMonster(bot, "pinkgoo", { requestMagiport: true }).catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "pinkgoo", { requestMagiport: true }).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
         },
     },
@@ -1833,7 +1933,8 @@ export const warriorStrategy: Strategy = {
         equipment: warriorBurn,
         move: async (bot: Warrior, healer: Priest) => {
             await goToPriestIfHurt(bot, healer)
-            goToNearestWalkableToMonster2(bot, ["plantoid"], { map: "desertland", x: -770, y: -125 })
+            await kiteInCircle(bot, "plantoid", { map: "desertland", x: -800, y: -400 }, bot.range)
+            //goToNearestWalkableToMonster2(bot, ["plantoid"], { map: "desertland", x: -800, y: -400 })
         },
         requireCtype: "priest"
     },
@@ -1846,14 +1947,14 @@ export const warriorStrategy: Strategy = {
     pppompom: {
         attack: async (bot: Warrior, friends: Character[]) => {
             // Use bow if they're far away, use fire equipment if they're close
-            const near = bot.getEntity({ type: "pppompom", withinRange: 40 })
+            const near = bot.getEntity({ type: "pppompom", withinRange: 35 })
             if (near) warriorStrategy.pppompom.equipment = warriorBurn
             else warriorStrategy.pppompom.equipment = warriorBow
 
             return attackTheseTypesWarrior(bot, ["pppompom"], friends, { disableAgitate: true, disableCleave: true, maximumTargets: 1 })
         },
         equipment: warriorBow,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "level2n", x: 120, y: -150 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "level2n", x: 120, y: -150 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     prat: {
@@ -1866,7 +1967,7 @@ export const warriorStrategy: Strategy = {
             else await attackTheseTypesWarrior(bot, ["prat"], friends, { disableAgitate: true, maximumTargets: 2, targetingPartyMember: false })
         },
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "level1", x: -296, y: 541 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "level1", x: -296, y: 541 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     rat: {
@@ -1892,7 +1993,7 @@ export const warriorStrategy: Strategy = {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["rooster"], friends) },
         attackWhileIdle: true,
         equipment: warriorAOE,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "main", x: -81.5, y: -282 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "main", x: -81.5, y: -282 }).catch(() => { /* */ }) },
     },
     scorpion: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["scorpion", "phoenix"], friends) },
@@ -1935,7 +2036,7 @@ export const warriorStrategy: Strategy = {
                     }
                     shouldAgitate = true
                 }
-                if (shouldAgitate) bot.agitate().catch(console.error)
+                if (shouldAgitate) bot.agitate().catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
             await attackTheseTypesWarrior(bot, ["snowman"], friends, { disableStomp: true })
         },
@@ -1983,7 +2084,7 @@ export const warriorStrategy: Strategy = {
             if (!stompy) {
                 await goToSpecialMonster(bot, "stompy", { requestMagiport: true })
             } else {
-                await moveInCircle(bot, stompy, 20, Math.PI / 2).catch(console.error)
+                await moveInCircle(bot, stompy, 20, Math.PI / 2).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
         },
         requireCtype: "priest"
@@ -2024,10 +2125,10 @@ export const warriorStrategy: Strategy = {
             const tiger = bot.getEntity({ returnNearest: true, type: "tiger" })
             if (tiger) {
                 const position = offsetPositionParty(tiger, bot)
-                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* Suppress Warnings */ })
-                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* Suppress Warnings */ })
+                if (Pathfinder.canWalkPath(bot, position)) bot.move(position.x, position.y).catch(() => { /* */ })
+                else if (!bot.smartMoving || Tools.distance(position, bot.smartMoving) > 100) bot.smartMove(position).catch(() => { /* */ })
             } else {
-                if (!bot.smartMoving) goToSpecialMonster(bot, "tiger", { requestMagiport: true }).catch(console.error)
+                if (!bot.smartMoving) goToSpecialMonster(bot, "tiger", { requestMagiport: true }).catch(e => console.error(`[${bot.ctype}]: ${e}`))
             }
         }
     },
@@ -2061,7 +2162,7 @@ export const warriorStrategy: Strategy = {
     wolf: {
         attack: async (bot: Warrior, friends: Character[]) => { await attackTheseTypesWarrior(bot, ["wolf"], friends, { maximumTargets: 2 }) },
         equipment: warriorBurn,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "winterland", x: 380, y: -2525 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "winterland", x: 380, y: -2525 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     },
     wolfie: {
@@ -2075,7 +2176,7 @@ export const warriorStrategy: Strategy = {
     xscorpion: {
         attack: async (bot: Warrior, friends: Character[]) => { return await attackTheseTypesWarrior(bot, ["xscorpion"], friends, { maximumTargets: 3 }) },
         equipment: warriorAOE,
-        move: async (bot: Warrior) => { await bot.smartMove({ map: "halloween", x: -325, y: 750 }) },
+        move: async (bot: Warrior) => { await bot.smartMove({ map: "halloween", x: -325, y: 750 }).catch(() => { /* */ }) },
         requireCtype: "priest"
     }
 }

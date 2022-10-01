@@ -1,6 +1,6 @@
 {
 	"name": "alclient-bots",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "My own bots to interact with Adventure.land.",
 	"main": "index.js",
 	"type": "module",

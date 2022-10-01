@@ -505,7 +505,7 @@ export async function goGetRspeedBuff(bot: Character, msToWait = 10000): Promise
 
     if (friendlyRogue) {
         if (bot.ctype == "merchant") (bot as Merchant).closeMerchantStand().catch(console.error)
-        await bot.smartMove(friendlyRogue, { getWithin: 20, stopIfTrue: () => bot.s.rspeed !== undefined, useBlink: true })
+        await bot.smartMove(friendlyRogue, { getWithin: 20, stopIfTrue: () => bot.s.rspeed !== undefined, useBlink: true }).catch(() => { /* */ })
         if (["earthRog"].includes(friendlyRogue.id)) return // Don't remove earthRog from the list, they're probably just low MP
 
         // Wait a bit for rspeed
@@ -541,14 +541,14 @@ export async function goToAggroMonster(bot: Character, entity: Entity): Promise<
             if (AL.Pathfinder.canWalkPath(bot, destination)) {
                 bot.move(destination.x, destination.y, { resolveOnStart: true }).catch(() => { /* Suppress errors */ })
             } else {
-                return bot.smartMove(destination)
+                return bot.smartMove(destination).catch(() => { /* */ })
             }
         } else {
             const destination: IPosition = { map: entity.map, x: entity.going_x, y: entity.going_y }
             if (AL.Pathfinder.canWalkPath(bot, destination)) {
                 bot.move(destination.x, destination.y).catch(() => { /* Suppress errors */ })
             } else {
-                return bot.smartMove(destination)
+                return bot.smartMove(destination).catch(() => { /* */ })
             }
         }
     }
@@ -558,7 +558,7 @@ export async function goToBankIfFull(bot: Character, itemsToHold: Set<ItemName>,
     if (!bot.isFull()) return // We aren't full
 
     await bot.smartMove("fancypots", { avoidTownWarps: true }) // Move to potion seller to give the sell loop a chance to sell things
-    await bot.smartMove(bankingPosition, { avoidTownWarps: true }) // Move to bank teller to give bank time to get ready
+    await bot.smartMove(bankingPosition, { avoidTownWarps: true }).catch(() => { /* */ }) // Move to bank teller to give bank time to get ready
 
     for (let i = 0; i < bot.isize; i++) {
         const item = bot.items[i]
@@ -621,7 +621,7 @@ export function goToKiteMonster(bot: Character, options: {
     if (AL.Pathfinder.canWalkPath(bot, potentialSpot)) {
         bot.move(potentialSpot.x, potentialSpot.y, { resolveOnStart: true }).catch(() => { /* Suppress errors */ })
     } else if (AL.Pathfinder.canStand(potentialSpot) && !bot.smartMoving) {
-        bot.smartMove(potentialSpot, { avoidTownWarps: true }).catch(() => { /* Suppress errors */ })
+        bot.smartMove(potentialSpot, { avoidTownWarps: true }).catch(() => { /* */ })
     }
 }
 
@@ -724,11 +724,11 @@ export async function goToNPC(bot: Character, name: NPCName) {
 
     // Look for it in our visible entities
     const npc = bot.players.get(fixedName)
-    if (npc) return bot.smartMove(offsetPositionParty(npc, bot), { useBlink: true })
+    if (npc) return bot.smartMove(offsetPositionParty(npc, bot), { useBlink: true }).catch(() => { /* */ })
 
     // Look for it in our database
     const special = await AL.NPCModel.findOne({ name: fixedName, serverIdentifier: bot.server.name, serverRegion: bot.server.region }).lean().exec()
-    if (special) return bot.smartMove(offsetPositionParty(special, bot), { useBlink: true })
+    if (special) return bot.smartMove(offsetPositionParty(special, bot), { useBlink: true }).catch(() => { /* */ })
 }
 
 export async function goToPriestIfHurt(bot: Character, priest: Character): Promise<IPosition> {
@@ -748,31 +748,31 @@ export async function goToSpecialMonster(bot: Character, type: MonsterName, opti
     // Look for it nearby
     let target = bot.getEntity({ returnNearest: true, type: type })
     if (target) {
-        await bot.smartMove(target, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true })
-        return bot.smartMove(target, { getWithin: bot.range - 10, useBlink: true })
+        await bot.smartMove(target, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true }).catch(() => { /* */ })
+        return bot.smartMove(target, { getWithin: bot.range - 10, useBlink: true }).catch(() => { /* */ })
     }
 
     // Look for it in the server data
     if ((bot.S?.[type] as ServerInfoDataLive)?.live && bot.S[type]["x"] !== undefined && bot.S[type]["y"] !== undefined) {
         const destination = bot.S[type] as IPosition
         if (options.requestMagiport) requestMagiportService(bot, destination)
-        if (AL.Tools.distance(bot, destination) > bot.range) return bot.smartMove(destination, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true })
+        if (AL.Tools.distance(bot, destination) > bot.range) return bot.smartMove(destination, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true }).catch(() => { /* */ })
     }
 
     // Look for it in our database
     const dbTarget = await AL.EntityModel.findOne({ serverIdentifier: bot.server.name, serverRegion: bot.server.region, type: type }).lean().exec()
     if (dbTarget && dbTarget.x !== undefined && dbTarget.y !== undefined) {
         if (options.requestMagiport) requestMagiportService(bot, dbTarget)
-        return bot.smartMove(dbTarget, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true })
+        return bot.smartMove(dbTarget, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true }).catch(() => { /* */ })
     }
 
     // Look for if there's a spawn for it
     for (const spawn of Pathfinder.locateMonster(type)) {
         // Move to the next spawn
-        await bot.smartMove(spawn, { getWithin: bot.range - 10, stopIfTrue: () => bot.getEntity({ type: type }) !== undefined })
+        await bot.smartMove(spawn, { getWithin: bot.range - 10, stopIfTrue: () => bot.getEntity({ type: type }) !== undefined }).catch(() => { /* */ })
 
         target = bot.getEntity({ returnNearest: true, type: type })
-        if (target) return bot.smartMove(target, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true })
+        if (target) return bot.smartMove(target, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true }).catch(() => { /* */ })
     }
 
     // Go through all the spawns on the map to look for it
@@ -801,10 +801,10 @@ export async function goToSpecialMonster(bot: Character, type: MonsterName, opti
 
         for (const spawn of spawns) {
             // Move to the next spawn
-            await bot.smartMove(spawn, { getWithin: bot.range - 10, stopIfTrue: () => bot.getEntity({ type: type }) !== undefined })
+            await bot.smartMove(spawn, { getWithin: bot.range - 10, stopIfTrue: () => bot.getEntity({ type: type }) !== undefined }).catch(() => { /* */ })
 
             target = bot.getEntity({ returnNearest: true, type: type })
-            if (target) return bot.smartMove(target, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true })
+            if (target) return bot.smartMove(target, { getWithin: bot.range - 10, stopIfTrue: stopIfTrue, useBlink: true }).catch(() => { /* */ })
         }
     }
 }
@@ -828,7 +828,7 @@ export async function goToPotionSellerIfLow(bot: Character, minHpPots = 100, min
     if (currentHpPots >= minHpPots && currentMpPots >= minMpPots) return // We don't need any more.
 
     // We're under the minimum, go buy potions
-    await bot.smartMove("fancypots", { getWithin: AL.Constants.NPC_INTERACTION_DISTANCE / 2 })
+    await bot.smartMove("fancypots", { getWithin: AL.Constants.NPC_INTERACTION_DISTANCE / 2 }).catch(() => { /* */ })
     await sleep(1000)
 }
 
@@ -855,7 +855,7 @@ export async function goToNPCShopIfFull(bot: Character, itemsToSell = ITEMS_TO_S
     }
     if (!hasSellableItem) return // We don't have anything to sell
 
-    await bot.smartMove("fancypots", { getWithin: AL.Constants.NPC_INTERACTION_DISTANCE / 2 })
+    await bot.smartMove("fancypots", { getWithin: AL.Constants.NPC_INTERACTION_DISTANCE / 2 }).catch(() => { /* */ })
     await sleep(1000)
 }
 
@@ -877,10 +877,10 @@ export async function goToNearestWalkableToMonster(bot: Character, types: Monste
         if (AL.Pathfinder.canWalkPath(bot, destination)) {
             bot.move(destination.x, destination.y, { resolveOnStart: true }).catch(() => { /* Suppress errors */ })
         } else {
-            return bot.smartMove(destination, { stopIfTrue: () => bot.getEntity({ canWalkTo: true, typeList: types }) !== undefined, useBlink: true })
+            return bot.smartMove(destination, { stopIfTrue: () => bot.getEntity({ canWalkTo: true, typeList: types }) !== undefined, useBlink: true }).catch(() => { /* */ })
         }
     } else if (!nearest) {
-        return bot.smartMove(types[0], { stopIfTrue: () => bot.getEntity({ canWalkTo: true, typeList: types }) !== undefined, useBlink: true })
+        return bot.smartMove(types[0], { stopIfTrue: () => bot.getEntity({ canWalkTo: true, typeList: types }) !== undefined, useBlink: true }).catch(() => { /* */ })
     }
 }
 
@@ -904,10 +904,10 @@ export function goToNearestWalkableToMonster2(bot: Character, types: MonsterName
 
         if (lastD !== undefined) {
             // We're in range of one or more monsters, move as much as we can to the next monster without going outside of the attack range of all existing monsters
-            bot.smartMove(target, { avoidTownWarps: true, costs: costs, getWithin: d - (bot.range - lastD), resolveOnFinalMoveStart: true }).catch(() => { /** Suppress Error */ })
+            bot.smartMove(target, { avoidTownWarps: true, costs: costs, getWithin: d - (bot.range - lastD), resolveOnFinalMoveStart: true }).catch(() => { /* */ })
         } else {
             // We're out of range of all monsters
-            bot.smartMove(target, { avoidTownWarps: true, costs: costs, resolveOnFinalMoveStart: true }).catch(() => { /** Suppress Error */ })
+            bot.smartMove(target, { avoidTownWarps: true, costs: costs, resolveOnFinalMoveStart: true }).catch(() => { /* */ })
         }
         return
     }
@@ -915,7 +915,7 @@ export function goToNearestWalkableToMonster2(bot: Character, types: MonsterName
     if (lastD) {
         if (defaultPosition) {
             // Move towards center of default position
-            bot.smartMove(offsetPositionParty(defaultPosition, bot), { avoidTownWarps: true, costs: costs, getWithin: Tools.distance(bot, defaultPosition) - (bot.range - lastD), resolveOnFinalMoveStart: true }).catch(() => { /** Suppress Error */ })
+            bot.smartMove(offsetPositionParty(defaultPosition, bot), { avoidTownWarps: true, costs: costs, getWithin: Tools.distance(bot, defaultPosition) - (bot.range - lastD), resolveOnFinalMoveStart: true }).catch(() => { /* */ })
         } else if (types) {
             // Move towards center of closest spawn
             const locations: IPosition[] = []
@@ -923,19 +923,19 @@ export function goToNearestWalkableToMonster2(bot: Character, types: MonsterName
                 locations.push(...Pathfinder.locateMonster(type))
             }
             locations.sort(sortClosestDistance(bot))
-            bot.smartMove(offsetPositionParty(locations[0], bot), { avoidTownWarps: true, costs: costs, getWithin: Tools.distance(bot, locations[0]) - (bot.range - lastD), resolveOnFinalMoveStart: true }).catch(() => { /** Suppress Error */ })
+            bot.smartMove(offsetPositionParty(locations[0], bot), { avoidTownWarps: true, costs: costs, getWithin: Tools.distance(bot, locations[0]) - (bot.range - lastD), resolveOnFinalMoveStart: true }).catch(() => { /* */ })
         }
     } else if (!bot.smartMoving) {
         // No targets nearby, move to spawn
         if (defaultPosition) {
-            bot.smartMove(offsetPositionParty(defaultPosition, bot), { resolveOnFinalMoveStart: true, useBlink: true }).catch(() => { /** Suppress Error */ })
+            bot.smartMove(offsetPositionParty(defaultPosition, bot), { resolveOnFinalMoveStart: true, useBlink: true }).catch(() => { /* */ })
         } else if (types) {
             const locations: IPosition[] = []
             for (const type of types) {
                 locations.push(...Pathfinder.locateMonster(type))
             }
             locations.sort(sortClosestDistance(bot))
-            bot.smartMove(offsetPositionParty(locations[0], bot), { resolveOnFinalMoveStart: true, useBlink: true }).catch(() => { /** Suppress Error */ })
+            bot.smartMove(offsetPositionParty(locations[0], bot), { resolveOnFinalMoveStart: true, useBlink: true }).catch(() => { /* */ })
         }
     }
 }
@@ -1284,7 +1284,31 @@ export function startCraftLoop(bot: Character, itemsToCraft: Set<ItemName>): voi
                 //       or if it uses the same slots. If it does, we don't have to worry
                 //       about filling up our inventory.
                 if (bot.esize < 5) break // Not a lot of empty space
-                if (bot.canCraft(iName)) {
+                let craftable = true
+                const buysNeeded: [ItemName, number][] = []
+                for (const [requiredQuantity, requiredItem, requiredLevel] of bot.G.craft[iName].items) {
+                    let fixedLevel = requiredLevel
+                    if (requiredLevel === undefined) {
+                        if (bot.G.items[requiredItem].upgrade || bot.G.items[requiredItem].compound) fixedLevel = 0
+                    }
+                    if (bot.hasItem(requiredItem, bot.items, { level: fixedLevel, quantityGreaterThan: requiredQuantity - 1 })) continue
+                    if (bot.canBuy(requiredItem, { ignoreLocation: true, quantity: requiredQuantity })) {
+                        buysNeeded.push([requiredItem, requiredQuantity])
+                        continue
+                    }
+                    craftable = false
+                }
+                if (craftable) {
+                    for (const [item, num] of buysNeeded) {
+                        if (bot.canBuy(item, { quantity: num })) {
+                            await bot.buy(item, num)
+                            continue
+                        }
+                        craftable = false
+                        break
+                    }
+                }
+                if (craftable && bot.canCraft(iName)) {
                     await bot.craft(iName)
                 }
             }
@@ -1296,23 +1320,25 @@ export function startCraftLoop(bot: Character, itemsToCraft: Set<ItemName>): voi
     craftLoop()
 }
 
-const DEBUG_EVENTS_ALL = new Map<string, [Date, string, string][]>()
-export function startDebugLoop(bot: Character): void {
-    const debugFile = `debug_${bot.id}.csv`
+const DEBUG_EVENTS_ALL = new Map<string, { incoming: [Date, string, string, boolean][], outgoing: [Date, string, string, boolean][] }>()
+export function startDebugLoop(bot: Character, write = false, maxSize = 1000): void {
 
-    const DEBUG_EVENTS: [Date, string, string][] = []
+    const DEBUG_EVENTS: { incoming: [Date, string, string, boolean][], outgoing: [Date, string, string, boolean][] } = { incoming: [], outgoing: [] }
     DEBUG_EVENTS_ALL.set(bot.id, DEBUG_EVENTS)
 
-    let i = 0
+    let inc = 0
+    let out = 0
     bot.socket.onAny((event: string, data: unknown) => {
-        DEBUG_EVENTS[i] = [new Date(), event, JSON.stringify(data)]
-        i = (i + 1) % 1000
+        DEBUG_EVENTS.incoming[inc] = [new Date(), event, JSON.stringify(data, undefined, 4), true]
+        inc = (inc + 1) % maxSize
     })
 
     bot.socket.onAnyOutgoing((event: string, data: unknown) => {
-        DEBUG_EVENTS[i] = [new Date(), event, JSON.stringify(data)]
-        i = (i + 1) % 1000
+        DEBUG_EVENTS.outgoing[out] = [new Date(), event, JSON.stringify(data, undefined, 4), false]
+        out = (out + 1) % maxSize
     })
+
+    const debugFile = `debug_${bot.id}.csv`
 
     async function debugLoop() {
         try {
@@ -1327,7 +1353,7 @@ export function startDebugLoop(bot: Character): void {
             data.push(bot.entities.size)
             data.push(bot.players.size)
             data.push(bot.chests.size)
-            data.push(AL.Database.nextUpdate.length)
+            data.push(AL.Database.nextUpdate.size)
             data.push(bot.projectiles.size)
             let numListeners = 0
             const listeners = new Map<string, number>()
@@ -1348,35 +1374,42 @@ export function startDebugLoop(bot: Character): void {
         bot.timeouts.set("debugLoop", setTimeout(debugLoop, 600000))
     }
 
-    // NOTE: Order these in the same order as above
-    const headers = []
-    headers.push("timestamp")
-    headers.push("resident set memory (MB)")
-    headers.push("heap memory (MB)")
-    headers.push("# entities")
-    headers.push("# players")
-    headers.push("# chests")
-    headers.push("# Database next updates")
-    headers.push("# projectiles")
-    headers.push("# socket listeners")
-    headers.push("# any-socket listeners")
-    headers.push("socket listener counts")
-    fs.appendFileSync(debugFile, `${headers.join(",")}\n`)
-    debugLoop()
+    if (write) {
+        // NOTE: Order these in the same order as above
+        const headers = []
+        headers.push("timestamp")
+        headers.push("resident set memory (MB)")
+        headers.push("heap memory (MB)")
+        headers.push("# entities")
+        headers.push("# players")
+        headers.push("# chests")
+        headers.push("# Database next updates")
+        headers.push("# projectiles")
+        headers.push("# socket listeners")
+        headers.push("# any-socket listeners")
+        headers.push("socket listener counts")
+        fs.appendFileSync(debugFile, `${headers.join(",")}\n`)
+        debugLoop().catch(() => { /* */ })
+    }
 }
 
 export function writeLast1000Events(bot: Character, filename: string, extra?: string) {
-    const events = DEBUG_EVENTS_ALL.get(bot.id)
-    if (!events) {
+    const eventsObj = DEBUG_EVENTS_ALL.get(bot.id)
+    if (!eventsObj) {
         console.debug("You didn't startDebugLoop(), you silly goose!!")
         return
     }
     console.debug(`WRITING LAST 1000 EVENTS TO ${filename}!`)
 
+    const events = [...eventsObj.incoming, ...eventsObj.outgoing]
+
     try {
         let prepare = extra ? `${extra}\n\n` : ""
         events.sort((a, b) => { return a?.[0].getTime() - b?.[0].getTime() })
-        for (const [date, event, data] of events) { prepare += `${date.toISOString()}: ${event} - ${data}\n` }
+        for (const [date, event, data, incoming] of events) {
+            if (![`${extra}\n\n`, ""].includes(prepare)) prepare += ",\n"
+            prepare += `"${incoming ? "inc=> " : "<=out "}${date.toISOString()}": { "${event}": ${data} }`
+        }
         fs.writeFileSync(filename, prepare)
     } catch (e) {
         console.error(e)

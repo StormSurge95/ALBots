@@ -7,8 +7,19 @@ export type Strategy = {
     monsterhunt?: boolean
 }
 
+export type CurrencyType =
+    TokenType | "gold"
+
+export type TokenType =
+    | "friendtoken"
+    | "funtoken"
+    | "monstertoken"
+    | "pvptoken"
+
 export type MerchantStrategy = {
-    buy: Set<ItemName>
+    buy: {
+        [T in CurrencyType]?: Set<ItemName>
+    }
     compound: Set<ItemName>
     craft: Set<ItemName>
     dismantle: Set<ItemName>
