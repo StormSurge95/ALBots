@@ -1,6 +1,6 @@
 import AL, { MonsterName } from "../../ALClient/build/index.js"
 import { startServer, addBot } from "../../ALUI/build/alui/index.js"
-import { startDebugLoop, startTrackerLoop, writeLast1000Events } from "./base/general.js"
+import { sleep, startDebugLoop, startTrackerLoop, writeLast1000Events } from "./base/general.js"
 import { partyLeader, partyMembers } from "./base/party.js"
 import { Information } from "./definitions/bot.js"
 import { preparePriest, prepareRanger, prepareWarrior } from "./master.js"
@@ -83,6 +83,7 @@ async function run() {
                 addBot(information.tank.bot.id, information.tank.bot.socket, information.tank.bot)
                 startDebugLoop(information.tank.bot, false, 1000)
                 information.tank.bot.socket.on("game_error", async () => {
+                    await sleep(50)
                     writeLast1000Events(information.tank.bot, `${information.tank.bot.id}_game_error_${ind}.json`)
                     ind = (ind >= 10) ? ind % 10 : ind + 1
                 })
