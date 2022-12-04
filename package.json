@@ -5,9 +5,6 @@
 	"main": "index.js",
 	"type": "module",
 	"dependencies": {
-		"adventureland-gui": "file:../ALUI",
-		"alclient": "file:../ALClient",
-		"algui": "file:../ALGUI",
 		"commander": "^9.4.0",
 		"fastpriorityqueue": "^0.7.2"
 	},
@@ -20,9 +17,6 @@
 	},
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"updateReqs": "npm i ../ALClient/ ../ALGUI/ ../ALUI/ commander@latest fastpriorityqueue@latest",
-		"updateDevs": "npm i --save-dev @typescript-eslint/eslint-plugin@latest @typescript-eslint/parser@latest eslint@latest rimraf@latest typescript@latest",
-		"update": "npm run updateReqs && npm run updateDevs",
 		"clean": "rimraf ./build/*",
 		"build": "tsc",
 		"prepare": "npm run clean && npm run build"

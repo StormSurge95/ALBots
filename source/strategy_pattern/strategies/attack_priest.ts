@@ -1,4 +1,4 @@
-import { Entity, PingCompensatedCharacter, Player, Priest, Tools } from "../../../../ALClient/"
+import { Entity, PingCompensatedCharacter, Player, Priest, Tools } from "../../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
 import { sortPriority } from "../../base/sort.js"
 import { BaseAttackStrategy, BaseAttackStrategyOptions } from "./attack.js"
@@ -7,12 +7,12 @@ export type PriestAttackStrategyOptions = BaseAttackStrategyOptions & {
     disableAbsorb?: true
     disableCurse?: true
     disableDarkBlessing?: true
-    healStrangers?: true
+    enableHealStrangers?: true
 }
 
 export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
     public options: PriestAttackStrategyOptions
-
+    
     public constructor(options?: PriestAttackStrategyOptions) {
         super(options)
 
@@ -20,14 +20,18 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
     }
 
     protected async attack(bot: Priest): Promise<void> {
+        await this.healFriendsOrSelf(bot)
+        if (!this.options.disableDarkBlessing) this.applyDarkBlessing(bot)
+
+        if (!this.shouldAttack(bot)) return
+
         const priority = sortPriority(bot, this.options.typeList)
 
         await this.ensureEquipped(bot)
 
-        await this.healFriendsOrSelf(bot)
-        if (!this.options.disableDarkBlessing) this.applyDarkBlessing(bot)
-        await this.basicAttack(bot, priority)
+        if (!this.options.disableBasicAttack) await this.basicAttack(bot, priority)
         if (!this.options.disableAbsorb) await this.absorbTargets(bot)
+        if (!this.options.disableZapper) await this.zapperAttack(bot, priority)
 
         await this.ensureEquipped(bot)
     }
@@ -42,7 +46,6 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
             withinRange: "attack"
         })
         if (entities.length == 0) return // No targets to attack
-
 
         // Prioritize the entities
         const targets = new FastPriorityQueue<Entity>(priority)
@@ -74,7 +77,7 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
             const canKill = bot.canKillInOneShot(target)
             if (canKill) this.preventOverkill(bot, target)
             if (!canKill || targets.size > 0) this.getEnergizeFromOther(bot)
-            return bot.basicAttack(target.id).catch(console.error)
+            return bot.basicAttack(target.id).catch(bot.error)
         }
     }
 
@@ -82,7 +85,7 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
         if (!bot.canUse("heal")) return
 
         const healPriority = (a: PingCompensatedCharacter, b: PingCompensatedCharacter) => {
-            // Heal our friends first
+            // heal our friends first
             const a_isFriend = this.options.contexts.some(friend => friend.bot?.id == a.id)
             const b_isFriend = this.options.contexts.some(friend => friend.bot?.id == b.id)
             if (a_isFriend && !b_isFriend) return true
@@ -92,7 +95,7 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
             const a_hpRatio = a.hp / a.max_hp
             const b_hpRatio = b.hp / b.max_hp
             if (a_hpRatio < b_hpRatio) return true
-            else if (b_hpRatio < a_hpRatio) return false
+            if (b_hpRatio < a_hpRatio) return false
 
             // Heal closer players
             return Tools.distance(a, bot) < Tools.distance(b, bot)
@@ -105,25 +108,20 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
 
         for (const player of bot.getPlayers({
             isDead: false,
-            isFriendly: this.options.healStrangers ? undefined : true,
+            isFriendly: this.options.enableHealStrangers ? undefined : true,
             isNPC: false,
             withinRange: "heal"
         })) {
-            // check for already existing healing projectiles
-            for (const [, projectile] of bot.projectiles) {
-                if (!(projectile.source == "heal" || projectile.source == "partyheal")) continue // not a healing projectile
-                if (projectile.target !== player.id) continue // not targeting this player
-                player.hp += projectile.heal
-                if (player.hp >= player.max_hp) break // if they'll be fully healed, break early (maybe change this?)
-            }
             if (player.hp / player.max_hp > 0.8) continue // They have enough hp
+
+            // TODO: Check for healing projectiles, if they'll be fully healed from them, don't heal
 
             players.add(player)
         }
 
         const toHeal = players.peek()
         if (toHeal) {
-            return bot.healSkill(toHeal.id).catch(console.error)
+            return bot.healSkill(toHeal.id).catch(bot.error)
         }
     }
 
@@ -131,19 +129,17 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
         if (!bot.canUse("absorb")) return // Can't absorb
 
         if (this.options.enableGreedyAggro) {
-            // TODO: If we can absorb the sins of a coop monster's target, do that instead
-            //       (couldGiveCredit: true)
-            // Absorb the sins of party members
+            // Absorb the sins of other players attacking coop monsters
             const entity = bot.getEntity({
-                targetingMe: false,
-                targetingPartyMember: true,
+                couldGiveCredit: true,
+                targetingPartyMember: false,
                 type: this.options.type,
                 typeList: this.options.typeList
             })
             if (entity) {
                 const player = bot.players.get(entity.target)
                 if (player && Tools.distance(bot, player) < bot.G.skills.absorb.range) {
-                    return bot.absorbSins(player.id).catch(console.error)
+                    return bot.absorbSins(player.id).catch(bot.error)
                 }
             }
         }
@@ -153,16 +149,16 @@ export class PriestAttackStrategy extends BaseAttackStrategy<Priest> {
         if (!entity) return // No entity
         if (entity.immune && !bot.G.skills.curse.pierces_immunity) return // Can't curse
         if (!bot.canUse("curse")) return
-        if (bot.canKillInOneShot(entity) || entity.willBurnToDeath() || entity.willDieToProjectiles(bot, bot.projectiles, bot.players, bot.entities)) return // Would be a waste to use if we can kill it right away
+        if (bot.canKillInOneShot(entity) || entity.willBurnToDeath() || entity.willDieToProjectiles(bot, bot.projectiles, bot.players, bot.entities)) return
 
-        bot.curse(entity.id).catch(console.error)
+        bot.curse(entity.id).catch(bot.error)
     }
 
     protected async applyDarkBlessing(bot: Priest) {
         if (!bot.canUse("darkblessing")) return
-        if (bot.s.darkblessing) return // We already have it applied
-        if (!bot.getEntity(this.options)) return // We aren't about to attack
+        if (bot.s.darkblessing) return
+        if (!bot.getEntity(this.options)) return
 
-        return bot.darkBlessing().catch(console.error)
+        return bot.darkBlessing().catch(bot.error)
     }
 }

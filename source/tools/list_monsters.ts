@@ -1,4 +1,4 @@
-import AL, { MonsterName } from "alclient"
+import AL, { MonsterName } from "../../../ALClient/build/index.js"
 import fs from "fs"
 import { exit } from "process"
 

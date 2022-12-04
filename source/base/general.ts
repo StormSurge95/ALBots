@@ -1,5 +1,5 @@
 import AL, { BankPackName, Character, Entity, GameResponseData, GMap, HitData, IEntity, InviteData, IPosition, ItemData, ItemName, ItemType, MapName, Merchant, MonsterName, NPCName, Pathfinder, Player, ServerIdentifier, ServerInfoDataLive, ServerRegion, SlotType, Tools, TradeSlotType } from "../../../ALClient/build/index.js"
-import { PathfinderOptions } from "alclient/build/definitions/pathfinder"
+import { PathfinderOptions } from "../../../ALClient/build/definitions/pathfinder"
 import fs from "fs"
 import { ItemLevelInfo, ListInfo } from "../definitions/bot.js"
 import { bankingPosition, offsetPositionParty } from "./locations.js"

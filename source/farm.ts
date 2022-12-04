@@ -1,5 +1,4 @@
 import AL, { MonsterName } from "../../ALClient/build/index.js"
-import { startServer, addBot } from "../../ALUI/build/alui/index.js"
 import { sleep, startDebugLoop, startTrackerLoop, writeLast1000Events } from "./base/general.js"
 import { partyLeader, partyMembers } from "./base/party.js"
 import { Information } from "./definitions/bot.js"
@@ -44,8 +43,6 @@ async function run() {
 
     console.log("Connecting...")
 
-    await startServer(8080)
-
     const startMerchantLoop = async () => {
         const loopBot = async () => {
             try {
@@ -54,7 +51,6 @@ async function run() {
                 information.friends[0] = information.merchant.bot
                 startMerchant(information.merchant.bot, merchantStrategy, information, { map: "main", x: -250, y: -100 }, partyLeader, partyMembers)
                 startTrackerLoop(information.merchant.bot)
-                addBot(information.merchant.bot.id, information.merchant.bot.socket, information.merchant.bot)
                 information.merchant.bot.socket.on("disconnect", loopBot)
             } catch (e) {
                 console.error(`[merchant]: ${e}`)
@@ -80,7 +76,6 @@ async function run() {
                 information.friends[1] = information.tank.bot
                 prepareWarrior(information.tank.bot, information, partyLeader, partyMembers, { monsterhunt: options.monsterhunt, defaultTarget: options.target })
                 startTrackerLoop(information.tank.bot)
-                addBot(information.tank.bot.id, information.tank.bot.socket, information.tank.bot)
                 startDebugLoop(information.tank.bot, false, 1000)
                 information.tank.bot.socket.on("game_error", async () => {
                     await sleep(50)
@@ -111,7 +106,6 @@ async function run() {
                 information.friends[2] = information.healer.bot
                 preparePriest(information.healer.bot, information, partyLeader, partyMembers, { monsterhunt: options.monsterhunt, defaultTarget: options.target })
                 startTrackerLoop(information.healer.bot)
-                addBot(information.healer.bot.id, information.healer.bot.socket, information.healer.bot)
                 information.healer.bot.socket.on("disconnect", loopBot)
             } catch (e) {
                 console.error(`[priest]: ${e}`)
@@ -136,7 +130,6 @@ async function run() {
                 information.friends[3] = information.dps.bot
                 prepareRanger(information.dps.bot, information, partyLeader, partyMembers, { monsterhunt: options.monsterhunt, defaultTarget: options.target })
                 startTrackerLoop(information.dps.bot)
-                addBot(information.dps.bot.id, information.dps.bot.socket, information.dps.bot)
                 information.dps.bot.socket.on("disconnect", loopBot)
             } catch (e) {
                 console.error(`[ranger]: ${e}`)

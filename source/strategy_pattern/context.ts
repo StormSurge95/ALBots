@@ -1,37 +1,24 @@
-import { Constants, Game, Mage, Merchant, Paladin, PingCompensatedCharacter, Priest, Ranger, Rogue, ServerIdentifier, ServerRegion, SkillName, Warrior } from "../../../ALClient/"
+import { Constants, Game, Mage, Merchant, Paladin, PingCompensatedCharacter, Priest, Ranger, Rogue, ServerIdentifier, ServerRegion, SkillName, Warrior } from "../../../ALClient/build/index.js"
 
 export type Loop<Type> = {
-    fn: (bot: Type) => Promise<unknown>,
-    interval: SkillName[] | number
+    fn: (bot: Type) => Promise<unknown>
+    /** If number, it will loop every this many ms. If SkillName, it will loop based on the cooldown of the skills in the array */
+    interval: SkillName[] | number[]
+}
+type ContextLoop<Type> = Loop<Type> & {
+    started: Date
 }
 
-export type LoopName =
-    | "attack"
-    | "avoid_stacking"
-    | "buy"
-    | "compound"
-    | "dismantle"
-    | "elixir"
-    | "equip"
-    | "exchange"
-    | "heal"
-    | "loot"
-    | "merchant_stand"
-    | "mluck"
-    | "move"
-    | "party"
-    | "partyheal"
-    | "respawn"
-    | "rspeed"
-    | "sell"
-    | "tracker"
-    | "upgrade"
+export type LoopName = "attack" | "avoid_stacking" | "buy" | "charge" | "compound" | "elixir" | "equip" | "heal" | "item" | "loot" | "magiport" | "merchant_stand" | "mluck" | "move" | "party" | "partyheal" | "respawn" | "rspeed" | "sell" | "tracker" | "upgrade"
 
 export type Loops<Type> = Map<LoopName, Loop<Type>>
+type ContextLoops<Type> = Map<LoopName, ContextLoop<Type>>
 
 export interface Strategy<Type> {
     loops?: Loops<Type>
+    /** This function will be called when the strategy gets applied to the bot */
     onApply?: (bot: Type) => void
+    /** If the strategy is removed, this function will be called */
     onRemove?: (bot: Type) => void
 }
 
@@ -39,7 +26,8 @@ export class Strategist<Type extends PingCompensatedCharacter> {
     public bot: Type
 
     private strategies = new Set<Strategy<Type>>()
-    private loops: Loops<Type> = new Map<LoopName, Loop<Type>>()
+    private loops: ContextLoops<Type> = new Map<LoopName, ContextLoop<Type>>()
+    private started: Date
     private stopped = false
     private timeouts = new Map<LoopName, NodeJS.Timeout>()
 
@@ -54,20 +42,31 @@ export class Strategist<Type extends PingCompensatedCharacter> {
 
         if (strategy.onApply) strategy.onApply(this.bot)
 
-        if (!strategy.loops) return
-        for (const [name, fn] of strategy.loops) {
-            if (fn === undefined) {
+        if (!strategy.loops) return // no loops to start
+        for (const [name, loop] of strategy.loops) {
+            if (loop == undefined) {
                 // Stop the loop
                 this.stopLoop(name)
             } else if (this.loops.has(name)) {
+                const oldLoop = this.loops.get(name)
                 // Change the loop
-                this.loops.set(name, fn)
+                this.loops.set(name, {
+                    fn: loop.fn,
+                    interval: loop.interval,
+                    started: oldLoop.started
+                })
             } else {
-                // Start the loops
-                this.loops.set(name, fn)
+                // Start the loop
+                const now = new Date()
+                this.loops.set(name, {
+                    fn: loop.fn,
+                    interval: loop.interval,
+                    started: now
+                })
 
                 const newLoop = async () => {
                     // Run the loop
+                    const started = Date.now()
                     try {
                         const loop = this.loops.get(name)
                         if (!loop || this.stopped) return // Stop the loop
@@ -75,19 +74,20 @@ export class Strategist<Type extends PingCompensatedCharacter> {
                             await loop.fn(this.bot) // Run the loop function
                         }
                     } catch (e) {
-                        console.error(e)
+                        this.bot.error(e)
                     }
 
                     // Setup the next run
                     const loop = this.loops.get(name)
-                    if (!loop || this.stopped) return // Stop the loop
-                    if (typeof loop.interval == "number") this.timeouts.set(name, setTimeout(newLoop, loop.interval)) // Continue the loop
+                    if (!loop || this.stopped) return // stop the loop
+                    if (loop.started.getTime() > started) return
+                    if (typeof loop.interval == "number") this.timeouts.set(name, setTimeout(async () => { newLoop() }, loop.interval)) // continue the loop
                     else if (Array.isArray(loop.interval)) {
-                        const cooldown = Math.max(50, Math.min(...loop.interval.map(skill => this.bot.getCooldown(skill))))
-                        this.timeouts.set(name, setTimeout(newLoop, cooldown)) // Continue the loop
+                        const cooldown = Math.max(50, Math.min(...loop.interval.map((skill) => this.bot.getCooldown(skill))))
+                        this.timeouts.set(name, setTimeout(async () => { newLoop() }, cooldown)) // continue the loop
                     }
                 }
-                newLoop().catch(console.error)
+                newLoop().catch(this.bot.error)
             }
         }
     }
@@ -96,9 +96,10 @@ export class Strategist<Type extends PingCompensatedCharacter> {
         for (const strategy of strategies) this.applyStrategy(strategy)
     }
 
-    public changeBot(newBot: Type) {
+    protected changeBot(newBot: Type) {
         this.bot = newBot
-        this.bot.socket.on("disconnect", this.reconnect)
+        this.bot.socket.on("disconnect", () => this.reconnect())
+        this.started = new Date()
 
         for (const strategy of this.strategies) {
             if (strategy.onApply) {
@@ -108,14 +109,15 @@ export class Strategist<Type extends PingCompensatedCharacter> {
     }
 
     public async changeServer(region: ServerRegion, id: ServerIdentifier) {
-        return new Promise<void>(resolve => {
-            // Disconnect the bot (this will remove the disconnect listener, too)
-            this.bot.socket.removeAllListeners("disconnect")
-            this.bot.disconnect()
+        return new Promise<void>((resolve) => {
+            if (this.bot) {
+                this.bot.socket.removeAllListeners("disconnect")
+                this.bot.disconnect()
+            }
 
             const switchBots = async () => {
+                let newBot: PingCompensatedCharacter
                 try {
-                    let newBot: PingCompensatedCharacter
                     switch (this.bot.ctype) {
                         case "mage": {
                             newBot = new Mage(this.bot.owner, this.bot.userAuth, this.bot.characterID, Game.G, Game.servers[region][id])
@@ -153,12 +155,31 @@ export class Strategist<Type extends PingCompensatedCharacter> {
                     await newBot.connect()
                     this.changeBot(newBot as Type)
                 } catch (e) {
-                    setTimeout(switchBots, 1000)
+                    if (newBot) {
+                        newBot.socket.removeAllListeners("disconnect")
+                        newBot.disconnect()
+                    }
+                    this.bot.error(e)
+                    const wait = /wait_(\d+)_second/.exec(e)
+                    if (wait && wait[1]) {
+                        setTimeout(() => switchBots(), 2000 + Number.parseInt(wait[1]) * 1000)
+                    } else if (/limits/.test(e)) {
+                        setTimeout(() => switchBots(), Constants.RECONNECT_TIMEOUT_MS)
+                    } else if (/ingame/.test(e)) {
+                        setTimeout(() => switchBots(), 500)
+                    } else {
+                        setTimeout(() => switchBots(), 10000)
+                    }
+                    return
                 }
                 resolve()
             }
-            switchBots().catch(console.error)
+            switchBots().catch(this.bot.error)
         })
+    }
+
+    public isReady() {
+        return !this.stopped && this.bot && this.bot.ready && this.bot.socket.connected
     }
 
     public isStopped() {
@@ -166,8 +187,6 @@ export class Strategist<Type extends PingCompensatedCharacter> {
     }
 
     public removeStrategy(strategy: Strategy<Type>) {
-        if (!this.strategies.has(strategy)) return // We don't have this strategy enabled
-
         if (strategy.loops) {
             for (const [loopName] of strategy.loops) {
                 this.stopLoop(loopName)
@@ -179,11 +198,13 @@ export class Strategist<Type extends PingCompensatedCharacter> {
     }
 
     public async reconnect(): Promise<void> {
-        this.bot.socket.removeAllListeners("disconnect")
-        this.bot.disconnect()
+        if (this.bot) {
+            this.bot.socket.removeAllListeners("disconnect")
+            this.bot.disconnect()
+        }
 
+        let newBot: PingCompensatedCharacter
         try {
-            let newBot: PingCompensatedCharacter
             switch (this.bot.ctype) {
                 case "mage": {
                     newBot = new Mage(this.bot.owner, this.bot.userAuth, this.bot.characterID, Game.G, Game.servers[this.bot.serverData.region][this.bot.serverData.name])
@@ -221,16 +242,20 @@ export class Strategist<Type extends PingCompensatedCharacter> {
             await newBot.connect()
             this.changeBot(newBot as Type)
         } catch (e) {
-            this.bot.socket.removeAllListeners("disconnect")
-            this.bot.disconnect()
-            console.error(e)
+            if (newBot) {
+                newBot.socket.removeAllListeners("disconnect")
+                newBot.disconnect()
+            }
+            this.bot.error(e)
             const wait = /wait_(\d+)_second/.exec(e)
             if (wait && wait[1]) {
-                setTimeout(this.reconnect, 2000 + Number.parseInt(wait[1]) * 1000)
+                setTimeout(() => this.reconnect(), 2000 + Number.parseInt(wait[1]) * 1000)
             } else if (/limits/.test(e)) {
-                setTimeout(this.reconnect, Constants.RECONNECT_TIMEOUT_MS)
+                setTimeout(() => this.reconnect(), Constants.RECONNECT_TIMEOUT_MS)
+            } else if (/ingame/.test(e)) {
+                setTimeout(() => this.reconnect(), 500)
             } else {
-                setTimeout(this.reconnect, 10000)
+                setTimeout(() => this.reconnect(), 10000)
             }
         }
     }
@@ -249,5 +274,10 @@ export class Strategist<Type extends PingCompensatedCharacter> {
         this.stopped = true
         for (const [, timeout] of this.timeouts) clearTimeout(timeout)
         this.bot.disconnect()
+    }
+
+    public uptime(): number {
+        if (!this.isReady()) return 0
+        return Date.now() - this.started.getTime()
     }
 }

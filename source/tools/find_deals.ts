@@ -1,4 +1,4 @@
-import AL, { Constants, ItemName, MapName, TradeSlotType } from "alclient"
+import AL, { Constants, ItemName, MapName, TradeSlotType } from "../../../ALClient/build/index.js"
 import { exit } from "process"
 import fs from "fs"
 

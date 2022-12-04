@@ -1,4 +1,4 @@
-import { Game, Pathfinder, MonsterName } from "alclient"
+import { Game, Pathfinder, MonsterName } from "../../../ALClient/build/index.js"
 
 const type = process.argv[2] as MonsterName
 

@@ -1,4 +1,4 @@
-import AL from "alclient"
+import AL from "../../../ALClient/build/index.js"
 
 const ONE_DAY_IN_MS = 8.64e+7
 

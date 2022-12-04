@@ -1,4 +1,4 @@
-import { Game, Pathfinder } from "alclient"
+import { Game, Pathfinder } from "../../ALClient/build/index.js"
 
 async function run() {
     await Promise.all([Game.loginJSONFile("./credentials.json"), Game.getGData(true, false)])
