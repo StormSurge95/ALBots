@@ -3,7 +3,7 @@ import { Constants, Game, Mage, Merchant, Paladin, PingCompensatedCharacter, Pri
 export type Loop<Type> = {
     fn: (bot: Type) => Promise<unknown>
     /** If number, it will loop every this many ms. If SkillName, it will loop based on the cooldown of the skills in the array */
-    interval: SkillName[] | number[]
+    interval: SkillName[] | number
 }
 type ContextLoop<Type> = Loop<Type> & {
     started: Date
