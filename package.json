@@ -5,15 +5,17 @@
 	"main": "index.js",
 	"type": "module",
 	"dependencies": {
-		"commander": "^9.4.0",
-		"fastpriorityqueue": "^0.7.2"
+		"@types/node": "^18.11.11",
+		"commander": "^9.4.1",
+		"fastpriorityqueue": "^0.7.2",
+		"node": "^19.2.0"
 	},
 	"devDependencies": {
-		"@typescript-eslint/eslint-plugin": "^5.36.2",
-		"@typescript-eslint/parser": "^5.36.2",
-		"eslint": "^8.23.0",
+		"@typescript-eslint/eslint-plugin": "^5.45.1",
+		"@typescript-eslint/parser": "^5.45.1",
+		"eslint": "^8.29.0",
 		"rimraf": "^3.0.2",
-		"typescript": "^4.8.3"
+		"typescript": "^4.9.4"
 	},
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
