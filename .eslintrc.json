@@ -58,7 +58,7 @@
             "error",
             "windows"
         ],
-        "no-multi-spaces": "error",
+        "no-multi-spaces": "off",
         "no-tabs": [
             "error",
             {

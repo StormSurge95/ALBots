@@ -3,7 +3,6 @@ import FastPriorityQueue from "fastpriorityqueue"
 import { sortPriority } from "../../base/sort.js"
 import { suppress_errors } from "../logging.js"
 import { BaseAttackStrategy, BaseAttackStrategyOptions, KILL_STEAL_AVOID_MONSTERS } from "./attack.js"
-import { brotliCompress } from "zlib"
 
 export type MageAttackStrategyOptions = BaseAttackStrategyOptions & {
     disableCburst?: boolean
@@ -78,7 +77,7 @@ export class MageAttackStrategy extends BaseAttackStrategy<Mage> {
     protected async cburstHumanoids(bot: Mage) {
         if (!bot.canUse("cburst")) return
 
-        const targets = new Map<string, number> ()
+        const targets = new Map<string, number>()
 
         // Check if we have enough restorability
         let humanoidRestorability = 0

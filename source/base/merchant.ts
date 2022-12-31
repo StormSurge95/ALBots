@@ -1,9 +1,26 @@
 import AL, { BankPackName, Character, Constants, Entity, IPosition, ItemData, ItemName, MapName, Merchant, MonsterName, NPCName, Pathfinder, SmartMoveOptions, Tools } from "../../../ALClient/build/index.js"
 import FastPriorityQueue from "fastpriorityqueue"
-import { LOOP_MS, sleep, sortBank, sortInventory } from "./general.js"
+import { ITEMS_TO_HOLD, LOOP_MS, sleep, sortBank, sortInventory } from "./general.js"
 import { bankingPosition, mainFishingSpot, miningSpot } from "./locations.js"
 import { sortPriority } from "./sort.js"
 import { ItemLevelInfo, ListInfo, MerchantStrategy } from "../definitions/bot.js"
+
+export const MERCHANT_GOLD_TO_HOLD = 100_000_000
+export const MERCHANT_ITEMS_TO_HOLD: Set<ItemName> = new Set([
+    ...ITEMS_TO_HOLD,
+    // Merchant Stand
+    "stand0",
+    // MH Tokens
+    "monstertoken",
+    // Scrolls
+    "cscroll0", "cscroll1", "cscroll2", "cscroll3", "scroll0", "scroll1", "scroll2", "scroll3", "scroll4", "strscroll", "intscroll", "dexscroll",
+    // Prims
+    "offering", "offeringp",
+    // Broom for speed
+    "broom",
+    // Fishing Rod and Pickaxe
+    "pickaxe", "rod",
+])
 
 export async function attackTheseTypesMerchant(bot: Merchant, types: MonsterName[], friends: Character[] = [], options: {
     disableCreditCheck?: boolean

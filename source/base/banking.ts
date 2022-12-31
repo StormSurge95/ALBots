@@ -1,7 +1,7 @@
 /* eslint-disable sort-keys */
-import AL, { BankPackName, Character, CharacterType, ItemData, ItemName, MapName } from "../../../ALClient/build/index.js"
+import AL, { BankPackName, Character, CharacterType, ItemData, ItemName, LocateItemsFilters, MapName } from "../../../ALClient/build/index.js"
 import { bankingPosition } from "./locations.js"
-import { merchantStrategy } from "../strategies.js"
+import { MERCHANT_ITEMS_TO_HOLD } from "./merchant.js"
 
 export type ItemCount = {
     name: ItemName
@@ -21,6 +21,10 @@ const DONT_UPGRADE = {
 const ULTRA_RARE = {
     offeringp: 1,
     offering: 2
+}
+const COMMON_HIGH = {
+    offeringp: 7,
+    offering: 9
 }
 /** What we do with upgradable items that are common at level 0 */
 const DEFAULT_UPGRADE_BASE_COMMON = {
@@ -63,24 +67,22 @@ export const ITEM_UPGRADE_CONF: {
     }
 } = {
     fury: ULTRA_RARE,
-    lostearring: {
-        // Level 2 is the best for exchanging
-        stop: 2
-    },
+    hboots: COMMON_HIGH,
+    harmor: COMMON_HIGH,
+    hgloves: COMMON_HIGH,
+    hhelmet: COMMON_HIGH,
+    hpants: COMMON_HIGH,
+    gphelmet: COMMON_HIGH,
+    phelmet: COMMON_HIGH,
+    lostearring: { stop: 2 }, // Level 2 is the best for exchanging
     starkillers: ULTRA_RARE,
-    stick: {
-        // We craft with level 9 sticks
-        stop: 9
-    },
+    stick: { stop: 9 }, // We craft with level 9 sticks
     suckerpunch: ULTRA_RARE,
     supermittens: ULTRA_RARE,
     t3bow: ULTRA_RARE,
     test_orb: DONT_UPGRADE,
     throwingstars: DONT_UPGRADE,
-    vitring: {
-        // We craft with level 2 vit rings
-        stop: 2
-    },
+    vitring: { stop: 2 }, // We craft with level 2 vit rings
     vorb: DONT_UPGRADE
 }
 
@@ -264,64 +266,71 @@ export async function getItemCountsForEverything(owner: string): Promise<ItemCou
  * @param item The item data
  */
 export function getOfferingToUse(item: ItemData): ItemName {
+    if (!item) return undefined
+
     const gItem = AL.Game.G.items[item.name]
-    const conf = ITEM_UPGRADE_CONF[item.name]
+    let conf = ITEM_UPGRADE_CONF[item.name]
+    if (!conf) {
+        if (gItem.compound) {
+            if (gItem.grades[0] > 0) conf = DEFAULT_COMPOUND_BASE_COMMON
+            else if (gItem.grades[1] > 0) conf = DEFAULT_COMPOUND_BASE_HIGH
+            else if (gItem.grades[2] > 0) conf = DEFAULT_COMPOUND_BASE_RARE
+        } else if (gItem.upgrade) {
+            if (gItem.grades[0] > 0) conf = DEFAULT_UPGRADE_BASE_COMMON
+            else if (gItem.grades[1] > 0) conf = DEFAULT_UPGRADE_BASE_HIGH
+            else if (gItem.grades[2] > 0) conf = DEFAULT_UPGRADE_BASE_RARE
+        }
+    }
     if (conf) {
-        // We have special configuration about this item
-        if (item.level >= conf?.offering) {
-            return "offering"
-        } else if (item.level >= conf?.offeringp) {
-            return "offeringp"
-        }
-    } else if (gItem.compound) {
-        if (gItem.grades[0] > 0) {
-            // Common at base 0
-            if (item.level >= DEFAULT_COMPOUND_BASE_COMMON.offering) {
-                return "offering"
-            } else if (item.level >= DEFAULT_COMPOUND_BASE_COMMON.offeringp) {
-                return "offeringp"
-            }
-        } else if (gItem.grades[1] > 0) {
-            // High at base 0
-            if (item.level >= DEFAULT_COMPOUND_BASE_HIGH.offering) {
-                return "offering"
-            } else if (item.level >= DEFAULT_COMPOUND_BASE_HIGH.offeringp) {
-                return "offeringp"
-            }
-        } else if (gItem.grades[2] > 0) {
-            // Rare at base 0
-            if (item.level >= DEFAULT_COMPOUND_BASE_RARE.offering) {
-                return "offering"
-            } else if (item.level >= DEFAULT_COMPOUND_BASE_RARE.offeringp) {
-                return "offeringp"
-            }
-        }
-    } else if (gItem.upgrade) {
-        if (gItem.grades[0] > 0) {
-            // Common at base 0
-            if (item.level >= DEFAULT_UPGRADE_BASE_COMMON.offering) {
-                return "offering"
-            } else if (item.level >= DEFAULT_UPGRADE_BASE_COMMON.offeringp) {
-                return "offeringp"
-            }
-        } else if (gItem.grades[1] > 0) {
-            // High at base 0
-            if (item.level >= DEFAULT_UPGRADE_BASE_HIGH.offering) {
-                return "offering"
-            } else if (item.level >= DEFAULT_UPGRADE_BASE_HIGH.offeringp) {
-                return "offeringp"
-            }
-        } else if (gItem.grades[2] > 0) {
-            // Rare at base 0
-            if (item.level >= DEFAULT_UPGRADE_BASE_RARE.offering) {
-                return "offering"
-            } else if (item.level >= DEFAULT_UPGRADE_BASE_RARE.offeringp) {
-                return "offeringp"
-            }
-        }
+        if (item.level >= conf.offering) return "offering"
+        else if (item.level >= conf.offeringp) return "offeringp"
     }
 
     return undefined
+}
+
+/**
+ * Withdraws items from bank
+ * @param bot
+ * @param items The item(s) you wish to withdraw
+ * @param options
+ */
+export async function withdrawItemFromBank(bot: Character, items: ItemName | ItemName[], itemFilters: LocateItemsFilters = {
+    locked: false
+}, options: {
+    freeSpaces: number
+    itemsToHold: Set<ItemName>
+}) {
+    // TODO: Add options to check more levels?
+    if (bot.map !== "bank") throw new Error("Not in bank")
+
+    // Put the single item in an array
+    if (typeof items == "string") items = [items]
+
+    // Get a list of inventory positions that we can swap items to
+    const toKeep = bot.locateItems(items, bot.items, itemFilters)
+    const freeSlots = getUnimportantInventorySlots(bot, options.itemsToHold).filter((i) => !toKeep.includes(i))
+
+    if (freeSlots.length == 0) throw new Error("No free slots in inventory!")
+
+    // Look in all the bank packs
+    for (const bP in bot.bank) {
+        if (bP == "gold") continue
+
+        // TODO: Add options to check more levels?
+        // Only check the first level
+        const bankPackNum = Number.parseInt(bP.substring(5, 7))
+        if (bankPackNum > 7) continue
+
+        const bankPack = bP as BankPackName
+        const bankItems = bot.bank[bankPack]
+
+        // Locate the items in the bank pack, and withdraw them
+        for (const pos of bot.locateItems(items, bankItems, itemFilters)) {
+            await bot.withdrawItem(bankPack, pos, freeSlots.pop())
+            if (bot.esize < options.freeSpaces) break // Limited space in inventory
+        }
+    }
 }
 
 /**
@@ -330,7 +339,7 @@ export function getOfferingToUse(item: ItemData): ItemName {
  * compound and upgrade
  * @param bot
  */
-export function getUnimportantInventorySlots(bot: Character, itemsToHold): number[] {
+export function getUnimportantInventorySlots(bot: Character, itemsToHold = MERCHANT_ITEMS_TO_HOLD): number[] {
     const slots: number[] = []
 
     for (let i = 0; i < bot.items.length; i++) {
@@ -481,14 +490,14 @@ export async function getItemsToCompoundOrUpgrade(bot: Character, counts?: ItemC
         const gData = AL.Game.G.items[okay.name]
         if (gData.compound) {
             const okay2 = okayToCompoundOrUpgrade[i + 1]
-            if (okay.name !== okay2.name || okay.level !== okay2.level) {
+            if (!okay2 || okay.name !== okay2.name || okay.level !== okay2.level) {
                 // Not enough to compound, remove
                 okayToCompoundOrUpgrade.splice(i, 1)
                 i -= 1
                 continue
             }
             const okay3 = okayToCompoundOrUpgrade[i + 2]
-            if (okay.name !== okay3.name || okay.level !== okay3.level) {
+            if (!okay3 || okay.name !== okay3.name || okay.level !== okay3.level) {
                 // Not enough to compound, remove
                 okayToCompoundOrUpgrade.splice(i, 2)
                 i -= 1
@@ -503,7 +512,7 @@ export async function getItemsToCompoundOrUpgrade(bot: Character, counts?: ItemC
         if (a.level !== b.level) return a.level - b.level
     })
 
-    const inventorySlots = getUnimportantInventorySlots(bot, merchantStrategy.hold)
+    const inventorySlots = getUnimportantInventorySlots(bot)
     inventorySlots.pop() // Keep one empty space in case we need to buy a scroll
 
     // This is our list of indexes that contain items that are okay to compound or upgrade
@@ -585,9 +594,9 @@ export async function upgradeOrCompoundItems(bot: Character, allIndexes: Indexes
             }
         }
 
-        if (allIndexes.length == 1) {
+        if (indexes.length == 1) {
             // We want to upgrade this item
-        } else if (allIndexes.length == 3) {
+        } else if (indexes.length == 3) {
             // We want to compound these items
         }
     }
